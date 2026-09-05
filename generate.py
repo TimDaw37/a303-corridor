@@ -250,6 +250,10 @@ HTML = r"""<!DOCTYPE html>
   .notes { max-width: 720px; margin: 0 auto; padding: 1.5rem 1.5rem 2.5rem; color: var(--muted); font-size: .92rem; }
   .notes h2 { font-size: 1.05rem; color: var(--gold); margin: 1.4rem 0 .6rem; font-weight: 600; }
   .notes h2:first-child { margin-top: 0; }
+  figure.xs { margin: 1.2rem 0 1.6rem; }
+  figure.xs img { display: block; max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
+  figure.xs figcaption { font-size: 0.85rem; color: #555; margin-top: 0.45rem; line-height: 1.35; }
+  figure.xs-narrow img { margin: 0 auto; }
   .notes p { margin: 0 0 .8rem; }
   .notes ul { margin: 0 0 .8rem; padding-left: 1.1rem; }
   .notes li { margin: 0 0 .25rem; }
@@ -323,6 +327,21 @@ HTML = r"""<!DOCTYPE html>
   <p>The eastern “glacial till… glacial activity” phrase is the only till wording among the five, but it is field slang inside a machine-trench natural that the register itself identifies as soliflucted chalk (51131 = 51103). Report 5’s interpretive geoarchaeology never elevates T511 to ice-laid diamicton; coombe remains peri-glacial solifluction. Treat 51132 as a flagged wording outlier on the lower eastern portal (~73 m OD), not as a mapped till sheet.</p>
 
   <h2>Elevations versus sea level</h2>
+  <h2 id="cross-sections">Cross-sections (m OD)</h2>
+  <p>Elevation sections in the spirit of Mortimore / Jarvis et al. (2017) Fig&nbsp;16 — the chalk corridor plotted in metres OD, the same visual language as the <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">January 2026 Stonehenge Bottom flooding audit</a>. Stacks are from printed Report&nbsp;7 sheets; corridor points are this gazetteer.</p>
+  <figure class="xs">
+    <img src="figures/winterbourne-stoke-section.png" alt="Winterbourne Stoke coombe N–S cross-section, Report 7 BH1–BH6, elevation in metres OD" width="100%" loading="lazy" />
+    <figcaption>Winterbourne Stoke coombe (Report 7 BH1–BH6). Periglacial coombe chalk under Holocene colluvium; rockhead ≈ 71–76 m OD. Holocene sea level ≈ 0 m OD lies ~70 m below the frame.</figcaption>
+  </figure>
+  <figure class="xs">
+    <img src="figures/corridor-long-section.png" alt="A303 corridor west–east long section of ground level and rockhead in metres OD" width="100%" loading="lazy" />
+    <figcaption>Corridor long-section (W→E). Ground levels ~71–118 m OD; SU14SW62 at Stonehenge Bottom marked at 96 m OD. Rockhead sticks where logged (Report 7 + two Phase holes).</figcaption>
+  </figure>
+  <figure class="xs xs-narrow">
+    <img src="figures/su14sw62-stick.png" alt="SU14SW62 Stonehenge Bottom borehole stick log in metres OD" width="320" loading="lazy" />
+    <figcaption>SU14SW62 (Stonehenge Bottom) — thin periglacial head over Seaford Chalk; no Holocene aquatic facies. Same audit borehole as the January 2026 post.</figcaption>
+  </figure>
+
   <p>Holocene eustatic sea level sits near <b>~0 m OD</b>. Ground levels in this gazetteer sit from <b>__GL_MIN__ to __GL_MAX__ m OD</b>. Winterbourne Stoke coombe rockhead (Report 7 BH1–BH6) is about <b>71–76 m OD</b>. BGS SU14SW62 at Stonehenge Bottom is <b>96.00 m OD</b> with no Holocene marine/aquatic facies. High Holocene water covering Stonehenge Bottom / the Plain is incompatible with these elevations — same argument as the January 2026 flooding audit.</p>
 
   <h2>How to read a pin</h2>
