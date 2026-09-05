@@ -300,6 +300,63 @@ HTML = r"""<!DOCTYPE html>
   .leaflet-control-layers-toggle { background-color: var(--panel); }
   .leaflet-control-layers label { color: var(--ink); }
   .leaflet-control-layers-separator { border-top-color: var(--line); }
+
+  .cover-legend {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .55rem .7rem .6rem;
+    font: .72rem/1.35 system-ui, sans-serif;
+    min-width: 11.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  }
+  .cover-legend h4 {
+    margin: 0 0 .4rem;
+    font: 600 .78rem/1.2 system-ui, sans-serif;
+    color: var(--gold);
+    letter-spacing: .02em;
+  }
+  .cover-legend .row {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin: .18rem 0;
+  }
+  .cover-legend .sw {
+    width: .85rem;
+    height: .85rem;
+    border-radius: 99px;
+    border: 1.5px solid #2a1808;
+    flex-shrink: 0;
+  }
+  .cover-legend .note {
+    margin: .45rem 0 0;
+    color: var(--muted);
+    font-size: .68rem;
+    line-height: 1.35;
+  }
+  .cover-legend .rings {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: .35rem 0 .15rem;
+    flex-wrap: wrap;
+  }
+  .cover-legend .ring {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+  }
+  .cover-legend .ring i {
+    display: inline-block;
+    width: .7rem;
+    height: .7rem;
+    border-radius: 99px;
+    background: #fec44f;
+  }
+  .cover-legend .ring.measured i { border: 2.5px solid #2a1808; }
+  .cover-legend .ring.estimated i { border: 1.2px solid #a67c52; }
 </style>
 </head>
 <body>
@@ -452,7 +509,7 @@ const GL_MIN = __GL_MIN__;
 const GL_MAX = __GL_MAX__;
 const N_FLAG = __N_FLAG__;
 const N_ROCK = __N_ROCK__;
-const TERR50_BOUNDS = [[51.16551123523024, -1.9098490455892285], [51.18234441696274, -1.7409944875535124]];
+const TERR50_BOUNDS = [[51.16706874298562, -1.9099747380148215], [51.18091520104916, -1.7391974361901161]];
 
 const map = L.map('map').setView([51.178, -1.84], 12);
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -538,6 +595,8 @@ const coverLayer = L.layerGroup();
   }).bindTooltip(tip).addTo(coverLayer);
 });
 
+coverLayer.addTo(map);
+
 L.control.layers(
   { 'OSM': osm },
   {
@@ -546,6 +605,34 @@ L.control.layers(
   },
   { collapsed: false, position: 'topright' }
 ).addTo(map);
+
+const coverLegend = L.control({ position: 'bottomleft' });
+coverLegend.onAdd = function () {
+  const div = L.DomUtil.create('div', 'cover-legend');
+  div.innerHTML = `
+    <h4>Cover thickness (m)</h4>
+    <div class="row"><span class="sw" style="background:#fff7bc"></span><span>0–1</span></div>
+    <div class="row"><span class="sw" style="background:#fec44f"></span><span>1–2</span></div>
+    <div class="row"><span class="sw" style="background:#fe9929"></span><span>2–3</span></div>
+    <div class="row"><span class="sw" style="background:#ec7014"></span><span>3–4</span></div>
+    <div class="row"><span class="sw" style="background:#8c2d04"></span><span>≥4</span></div>
+    <div class="rings">
+      <span class="ring measured"><i></i> measured rockhead</span>
+      <span class="ring estimated"><i></i> estimated cover</span>
+    </div>
+    <p class="note">Bold/dark ring = measured rockhead; light ring = estimated. Marker size also increases with thickness.</p>
+  `;
+  L.DomEvent.disableClickPropagation(div);
+  return div;
+};
+coverLegend.addTo(map);
+
+map.on('overlayadd', (e) => {
+  if (e.name === 'Cover thickness') coverLegend.addTo(map);
+});
+map.on('overlayremove', (e) => {
+  if (e.name === 'Cover thickness') map.removeControl(coverLegend);
+});
 
 function makeChips(el, values, kind, labels) {
   el.innerHTML = `<div class="lab">${kind}</div>` + values.map(v => {
@@ -664,7 +751,8 @@ document.getElementById('seaPanel').innerHTML =
   `<a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">the January 2026 flooding audit</a>.`;
 
 renderList();
-const bounds = L.latLngBounds(HOLES.map(h => [h.lat, h.lon]));
+const MAIN_HOLES = HOLES.filter(h => !['TP-A','TP-B','TP-C'].includes(h.id));
+const bounds = L.latLngBounds(MAIN_HOLES.map(h => [h.lat, h.lon]));
 if (bounds.isValid()) map.fitBounds(bounds.pad(0.08));
 </script>
 

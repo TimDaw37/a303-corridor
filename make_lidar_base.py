@@ -14,9 +14,29 @@ LIDAR = ROOT / 'lidar'
 OUT = LIDAR / 'web'
 OUT.mkdir(parents=True, exist_ok=True)
 
-# Corridor crop in OSGB
-E0, E1 = 406400.0, 418200.0
-N0, N1 = 140700.0, 142600.0
+# Corridor crop in OSGB: main borehole ribbon (exclude TP-A/B/C outliers), ~250 m pad
+EXCLUDE_IDS = {'TP-A', 'TP-B', 'TP-C'}
+PAD_M = 250.0
+
+
+def corridor_crop_osgb():
+    rows = json.loads((ROOT / 'data' / 'boreholes.json').read_text())
+    main = [r for r in rows if r.get('id') not in EXCLUDE_IDS]
+    if not main:
+        raise SystemExit('no main-corridor boreholes for crop')
+    es = [float(r['easting']) for r in main]
+    ns = [float(r['northing']) for r in main]
+    e0, e1 = min(es) - PAD_M, max(es) + PAD_M
+    n0, n1 = min(ns) - PAD_M, max(ns) + PAD_M
+    print(
+        f'OSGB crop (excl {sorted(EXCLUDE_IDS)}, pad {PAD_M:g} m): '
+        f'E {e0:.2f}–{e1:.2f}, N {n0:.2f}–{n1:.2f} '
+        f'({len(main)} holes; raw E {min(es):.2f}–{max(es):.2f}, N {min(ns):.2f}–{max(ns):.2f})'
+    )
+    return e0, e1, n0, n1
+
+
+E0, E1, N0, N1 = corridor_crop_osgb()
 
 DEFAULT = {
     'chalk': 0.6, 'made_ground': 1.5, 'colluvium': 2.0,
