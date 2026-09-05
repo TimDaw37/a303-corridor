@@ -244,6 +244,12 @@ HTML = r"""<!DOCTYPE html>
   .flag { color: var(--flag); font-weight: 600; }
   .detail { max-width: 1400px; margin: 0 auto; padding: 1.2rem 1.5rem 1.5rem; }
   .detail h2 { color: var(--gold); margin: 0 0 .3rem; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 140px; gap: 1rem; align-items: start; }
+  @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+  .stick-thumb { display: block; border: 1px solid #ddd; border-radius: 4px; background: #fff; max-width: 140px; }
+  .stick-thumb img { display: block; width: 100%; height: auto; }
+  .stick-meta { font-size: .78rem; color: var(--muted); margin: .35rem 0 0; line-height: 1.3; }
+
   .kv { display: grid; grid-template-columns: 10rem 1fr; gap: .2rem .8rem; font: .9rem/1.4 system-ui, sans-serif; margin: 1rem 0; }
   .kv dt { color: var(--muted); }
   a { color: #d4c08a; }
@@ -371,6 +377,9 @@ HTML = r"""<!DOCTYPE html>
 
   <p>Holocene eustatic sea level sits near <b>~0 m OD</b>. Ground levels in this gazetteer sit from <b>__GL_MIN__ to __GL_MAX__ m OD</b>. Winterbourne Stoke coombe rockhead (Report 7 BH1–BH6) is about <b>71–76 m OD</b>. BGS SU14SW62 at Stonehenge Bottom is <b>96.00 m OD</b> with no Holocene marine/aquatic facies. High Holocene water covering Stonehenge Bottom / the Plain is incompatible with these elevations — same argument as the January 2026 flooding audit.</p>
   <p class="cite">Mortimore, R.N., Gelder, A., Moore, J., Brooks, S., Gallagher, L. &amp; Farrant, A.R. (2017). Stonehenge — a unique Late Cretaceous phosphatic Chalk geology. <i>Proceedings of the Geologists’ Association</i> 128, 564–598. Fig.&nbsp;16 is the style model for the elevation sections above.</p>
+
+  <h2 id="sticks-note">Schematic sticks for every hole</h2>
+  <p>Every gazetteer pin has a schematic OD stick in the separate <a href="sticks/"><code>sticks/</code> directory</a> (also linked from the detail panel). Most are proportional stacks from the unit-label string between ground level and rockhead (measured where logged; otherwise a class-based cover estimate). Report&nbsp;7 BH1–BH6 use the printed OD intervals; <a href="sticks/SU14SW62.png">SU14SW62</a> is the flooding-audit stick. These are reading aids, not substitutes for the NSIP sheets.</p>
 
   <h2>How to read a pin</h2>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
@@ -539,23 +548,37 @@ function select(id, pan) {
   document.querySelectorAll('.card').forEach(c => c.classList.toggle('sel', c.dataset.id === id));
   if (pan) map.setView([h.lat, h.lon], Math.max(map.getZoom(), 14));
   if (markers[id].openTooltip) markers[id].openTooltip();
+  const stickFile = 'sticks/' + String(h.id).replace(/[^\w.\-]+/g, '_') + '.png';
   document.getElementById('detail').innerHTML = `
     <span class="badge b-${esc(h.classification)}">${esc(h.class_label)}</span>
     ${h.glacial_wording === 'y' ? '<span class="flag">glacial wording on this log</span>' : ''}
     <h2>${esc(h.id)}</h2>
     <p class="meta">${sourceDocHtml(h.source_doc)}</p>
-    <dl class="kv">
-      <dt>OSGB36</dt><dd>E ${h.easting} · N ${h.northing}</dd>
-      <dt>Ground level</dt><dd>${fmtOd(h.gl_m_od)}</dd>
-      <dt>Rockhead</dt><dd>${fmtOd(h.rockhead_m_od)}</dd>
-      <dt>Unit stack</dt><dd>${esc(h.top_units || '—')}</dd>
-      <dt>Area</dt><dd>${esc(h.area || '—')}</dd>
-      <dt>Classification</dt><dd>${esc(h.class_label)}</dd>
-      <dt>Glacial wording</dt><dd>${h.glacial_wording === 'y' ? 'yes (field slang flagged)' : 'no'}</dd>
-      <dt>Source PDF</dt><dd>${sourceDocHtml(h.source_doc)}</dd>
-      <dt>Map</dt><dd><a href="https://www.openstreetmap.org/?mlat=${h.lat}&mlon=${h.lon}#map=16/${h.lat}/${h.lon}" target="_blank" rel="noopener">OpenStreetMap</a></dd>
-    </dl>
-    <p>${esc(h.notes || '')}</p>`;
+    <div class="detail-grid">
+      <div>
+        <dl class="kv">
+          <dt>OSGB36</dt><dd>E ${h.easting} · N ${h.northing}</dd>
+          <dt>Ground level</dt><dd>${fmtOd(h.gl_m_od)}</dd>
+          <dt>Rockhead</dt><dd>${fmtOd(h.rockhead_m_od)}</dd>
+          <dt>Unit stack</dt><dd>${esc(h.top_units || '—')}</dd>
+          <dt>Area</dt><dd>${esc(h.area || '—')}</dd>
+          <dt>Classification</dt><dd>${esc(h.class_label)}</dd>
+          <dt>Glacial wording</dt><dd>${h.glacial_wording === 'y' ? 'yes (field slang flagged)' : 'no'}</dd>
+          <dt>Source PDF</dt><dd>${sourceDocHtml(h.source_doc)}</dd>
+          <dt>Map</dt><dd><a href="https://www.openstreetmap.org/?mlat=${h.lat}&mlon=${h.lon}#map=16/${h.lat}/${h.lon}" target="_blank" rel="noopener">OpenStreetMap</a></dd>
+          <dt>Stick</dt><dd><a href="${stickFile}" target="_blank" rel="noopener">Full-size schematic</a>
+            · <a href="sticks/">all sticks</a></dd>
+        </dl>
+        <p>${esc(h.notes || '')}</p>
+      </div>
+      <a class="stick-thumb expandable-wrap" href="${stickFile}" title="Open schematic stick">
+        <img class="expandable" src="${stickFile}" alt="Schematic stick for ${esc(h.id)}" loading="lazy"/>
+        <p class="stick-meta">Schematic OD stick — click to enlarge. Unit thicknesses proportional unless Report&nbsp;7 printed intervals.</p>
+      </a>
+    </div>`;
+  // re-bind lightbox for newly injected expandable img
+  const fresh = document.querySelector('#detail img.expandable');
+  if (fresh && window._bindStickLightbox) window._bindStickLightbox(fresh);
 }
 
 document.getElementById('q').addEventListener('input', renderList);
@@ -606,12 +629,16 @@ if (bounds.isValid()) map.fitBounds(bounds.pad(0.08));
     document.documentElement.style.overflow = '';
   }
 
-  document.querySelectorAll('img.expandable').forEach((img) => {
-    img.addEventListener('click', () => openLb(img));
+  function bindExpandable(img) {
+    if (!img || img.dataset.lbBound) return;
+    img.dataset.lbBound = '1';
+    img.addEventListener('click', (e) => { e.preventDefault(); openLb(img); });
     img.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(img); }
     });
-  });
+  }
+  document.querySelectorAll('img.expandable').forEach(bindExpandable);
+  window._bindStickLightbox = bindExpandable;
   closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeLb(); });
   lb.addEventListener('click', (e) => { if (e.target === lb) closeLb(); });
   document.addEventListener('keydown', (e) => {
