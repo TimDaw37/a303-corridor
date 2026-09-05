@@ -39,7 +39,7 @@ LABELS = {
     "b_horizon": "B horizon",
     "lag": "Flint lag",
     "colluvium": "Holocene colluvium",
-    "buried_soil": "Buried soil? (Windermere or pipe)",
+    "buried_soil": "Dark band BH5/BH6 — not till (see note)",
     "coombe": "Coombe chalk (periglacial)",
     "weathered_chalk": "Weathered chalk",
     "bedrock": "Structural / bedrock chalk",
@@ -236,6 +236,23 @@ def make_winterbourne():
         fontsize=8,
         color="#1f77b4",
         bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#bcd", alpha=0.95),
+    )
+    # BH5/BH6 dark band — Report 7: possible Windermere soil OR dissolution pipe; NOT till
+    ax.annotate(
+        "Dark band in BH5 & BH6 only:\n"
+        "Report 7 = possible Windermere\n"
+        "interstadial soil within coombe,\n"
+        "or clay-with-flint dissolution pipe.\n"
+        "Not till · not a glacial sheet.",
+        xy=(xs[4], 72.9),
+        xytext=(xs[2] - 2, 77.8),
+        fontsize=7.2,
+        color="#3d2914",
+        ha="left",
+        va="top",
+        arrowprops=dict(arrowstyle="->", color="#3d2914", lw=0.9),
+        bbox=dict(boxstyle="round,pad=0.35", facecolor="#fff8f0", edgecolor="#a08060", alpha=0.96),
+        zorder=10,
     )
 
     fig.tight_layout()
