@@ -304,12 +304,22 @@ HTML = r"""<!DOCTYPE html>
   .cover-legend {
     background: var(--panel);
     color: var(--ink);
-    border: 1px solid var(--line);
+    border: 1px solid var(--gold);
     border-radius: 4px;
     padding: .55rem .7rem .6rem;
     font: .72rem/1.35 system-ui, sans-serif;
     min-width: 11.5rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,.35);
+    box-shadow: 0 2px 8px rgba(0,0,0,.55);
+  }
+  .cover-legend.static-key {
+    margin: .8rem 0 1.2rem;
+    max-width: 22rem;
+    border: 1px solid var(--line);
+    box-shadow: none;
+  }
+  /* Keep map legend clear of the zoom bar */
+  .leaflet-top.leaflet-left .cover-legend {
+    margin-top: .35rem;
   }
   .cover-legend h4 {
     margin: 0 0 .4rem;
@@ -450,7 +460,20 @@ HTML = r"""<!DOCTYPE html>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
   <h2>Terrain &amp; cover thickness</h2>
-  <p>OS Terrain&nbsp;50 hillshade is an <b>interim ground-surface base</b> (not rockhead). Cover thickness at each hole is <b>measured</b> where rockhead is logged, otherwise <b>estimated</b> from classification. Environment Agency 1&nbsp;m DTM LiDAR is pending and will replace Terrain&nbsp;50 when available. Toggle both layers in the map control (top-right).</p>
+  <p>Preferred ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover thickness at each hole is <b>measured</b> where rockhead is logged, otherwise <b>estimated</b> from classification. OS Terrain&nbsp;50 remains available as an optional fallback. Toggle layers in the map control (top-right). The same depth key sits on the map (top-left, under zoom) whenever <b>Cover thickness</b> is on.</p>
+  <div class="cover-legend static-key" aria-label="Cover thickness key">
+    <h4>Cover thickness (m)</h4>
+    <div class="row"><span class="sw" style="background:#fff7bc"></span><span>0–1</span></div>
+    <div class="row"><span class="sw" style="background:#fec44f"></span><span>1–2</span></div>
+    <div class="row"><span class="sw" style="background:#fe9929"></span><span>2–3</span></div>
+    <div class="row"><span class="sw" style="background:#ec7014"></span><span>3–4</span></div>
+    <div class="row"><span class="sw" style="background:#8c2d04"></span><span>≥4</span></div>
+    <div class="rings">
+      <span class="ring measured"><i></i> measured rockhead</span>
+      <span class="ring estimated"><i></i> estimated cover</span>
+    </div>
+    <p class="note">Bold/dark ring = measured rockhead; light ring = estimated. Marker size also increases with thickness.</p>
+  </div>
 
   <h2>Sources</h2>
   <ul>
@@ -468,7 +491,7 @@ HTML = r"""<!DOCTYPE html>
     <li>Daw, T. 2026. <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">Auditing the claim of Holocene flooding of Stonehenge Bottom</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i> s43247-025-03105-3</a>.</li>
     <li>Corpus noticed via <a href="https://www.buystonehenge.com/the-glacial-a303/">BuyStonehenge — The glacial A303</a> (desk search only; not a source of elevations).</li>
-    <li>OS Terrain&nbsp;50 OpenData (interim hillshade base). Environment Agency LiDAR 1&nbsp;m DTM forthcoming.</li>
+    <li>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m (preferred hillshade; Open Government Licence). OS Terrain&nbsp;50 OpenData remains as optional fallback.</li>
   </ul>
 </section>
 
@@ -482,7 +505,7 @@ HTML = r"""<!DOCTYPE html>
         <a href="https://mapapps2.bgs.ac.uk/geoindex/home.html?layer=BGSBoreholes">GeoIndex</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i></a> — Plain unglaciated; negligible Preseli zircon fingerprint.</li>
     <li>Quote concordance: see <code>NOTES.md</code> in this repo.</li>
-    <li>OS Terrain&nbsp;50 © Crown copyright / Open Government Licence (OpenData). EA LiDAR forthcoming.</li>
+    <li>EA LiDAR Composite DTM 2022 1&nbsp;m © Environment Agency / Open Government Licence. OS Terrain&nbsp;50 © Crown copyright / Open Government Licence (OpenData) — optional fallback.</li>
   </ul>
   <p>Original compilation, classification flags and code<br/>
   © Tim Daw 2026, licensed <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p>
@@ -510,10 +533,17 @@ const GL_MAX = __GL_MAX__;
 const N_FLAG = __N_FLAG__;
 const N_ROCK = __N_ROCK__;
 const TERR50_BOUNDS = [[51.16706874298562, -1.9099747380148215], [51.18091520104916, -1.7391974361901161]];
+const EA1M_BOUNDS = [[51.16706874298562, -1.9099747380148215], [51.18091520104916, -1.7391974361901161]];
 
 const map = L.map('map').setView([51.178, -1.84], 12);
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+const ea1m = L.imageOverlay('lidar/web/ea1m-hillshade.png', EA1M_BOUNDS, {
+  opacity: 0.78,
+  interactive: false,
+  attribution: 'EA LiDAR Composite DTM 2022 1m © Environment Agency / OGL'
 }).addTo(map);
 
 const terr50 = L.imageOverlay('lidar/web/terr50-hillshade.png', TERR50_BOUNDS, {
@@ -600,13 +630,14 @@ coverLayer.addTo(map);
 L.control.layers(
   { 'OSM': osm },
   {
+    'EA LiDAR 1m hillshade (2022)': ea1m,
     'Terrain 50 hillshade': terr50,
     'Cover thickness': coverLayer
   },
   { collapsed: false, position: 'topright' }
 ).addTo(map);
 
-const coverLegend = L.control({ position: 'bottomleft' });
+const coverLegend = L.control({ position: 'topleft' });
 coverLegend.onAdd = function () {
   const div = L.DomUtil.create('div', 'cover-legend');
   div.innerHTML = `
