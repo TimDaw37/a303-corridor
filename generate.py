@@ -293,6 +293,13 @@ HTML = r"""<!DOCTYPE html>
   footer { max-width: 720px; margin: 0 auto; padding: 0 1.5rem 2.5rem; color: var(--muted); font-size: .8rem; }
   footer ul { margin: .35rem 0 1rem; padding-left: 1.1rem; }
   footer li { margin: 0 0 .3rem; }
+  .leaflet-control-layers {
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    font: .78rem/1.35 system-ui, sans-serif;
+  }
+  .leaflet-control-layers-toggle { background-color: var(--panel); }
+  .leaflet-control-layers label { color: var(--ink); }
+  .leaflet-control-layers-separator { border-top-color: var(--line); }
 </style>
 </head>
 <body>
@@ -385,6 +392,9 @@ HTML = r"""<!DOCTYPE html>
   <h2>How to read a pin</h2>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
+  <h2>Terrain &amp; cover thickness</h2>
+  <p>OS Terrain&nbsp;50 hillshade is an <b>interim ground-surface base</b> (not rockhead). Cover thickness at each hole is <b>measured</b> where rockhead is logged, otherwise <b>estimated</b> from classification. Environment Agency 1&nbsp;m DTM LiDAR is pending and will replace Terrain&nbsp;50 when available. Toggle both layers in the map control (top-right).</p>
+
   <h2>Sources</h2>
   <ul>
     <li>NSIP / National Highways factual reports (Planning Inspectorate):
@@ -401,6 +411,7 @@ HTML = r"""<!DOCTYPE html>
     <li>Daw, T. 2026. <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">Auditing the claim of Holocene flooding of Stonehenge Bottom</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i> s43247-025-03105-3</a>.</li>
     <li>Corpus noticed via <a href="https://www.buystonehenge.com/the-glacial-a303/">BuyStonehenge — The glacial A303</a> (desk search only; not a source of elevations).</li>
+    <li>OS Terrain&nbsp;50 OpenData (interim hillshade base). Environment Agency LiDAR 1&nbsp;m DTM forthcoming.</li>
   </ul>
 </section>
 
@@ -414,6 +425,7 @@ HTML = r"""<!DOCTYPE html>
         <a href="https://mapapps2.bgs.ac.uk/geoindex/home.html?layer=BGSBoreholes">GeoIndex</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i></a> — Plain unglaciated; negligible Preseli zircon fingerprint.</li>
     <li>Quote concordance: see <code>NOTES.md</code> in this repo.</li>
+    <li>OS Terrain&nbsp;50 © Crown copyright / Open Government Licence (OpenData). EA LiDAR forthcoming.</li>
   </ul>
   <p>Original compilation, classification flags and code<br/>
   © Tim Daw 2026, licensed <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p>
@@ -423,6 +435,7 @@ HTML = r"""<!DOCTYPE html>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const HOLES = __HOLES_JSON__;
+const COVER = __COVER_JSON__;
 const SOURCE_DOC_URLS = __SOURCE_DOC_URLS__;
 const COLOUR = {
   periglacial_coombe: '#6d8b74',
@@ -439,15 +452,40 @@ const GL_MIN = __GL_MIN__;
 const GL_MAX = __GL_MAX__;
 const N_FLAG = __N_FLAG__;
 const N_ROCK = __N_ROCK__;
+const TERR50_BOUNDS = [[51.16551123523024, -1.9098490455892285], [51.18234441696274, -1.7409944875535124]];
 
 const map = L.map('map').setView([51.178, -1.84], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap'
 }).addTo(map);
+
+const terr50 = L.imageOverlay('lidar/web/terr50-hillshade.png', TERR50_BOUNDS, {
+  opacity: 0.75,
+  interactive: false,
+  attribution: 'OS Terrain 50 © Crown copyright / OpenData'
+});
 
 if (!map.getPane('holes')) {
   map.createPane('holes');
   map.getPane('holes').style.zIndex = 650;
+}
+if (!map.getPane('cover')) {
+  map.createPane('cover');
+  map.getPane('cover').style.zIndex = 660;
+}
+
+function coverColour(m) {
+  const v = Number(m);
+  if (!(v >= 0)) return '#fee391';
+  if (v < 1) return '#fff7bc';
+  if (v < 2) return '#fec44f';
+  if (v < 3) return '#fe9929';
+  if (v < 4) return '#ec7014';
+  return '#8c2d04';
+}
+function coverRadius(m) {
+  const v = Math.max(0, Number(m) || 0);
+  return 3.5 + Math.sqrt(v) * 3.2;
 }
 
 function esc(s) {
@@ -481,6 +519,33 @@ HOLES.forEach(h => {
   markers[h.id] = m;
   m.addTo(layer);
 });
+
+const coverLayer = L.layerGroup();
+(COVER.features || COVER).forEach(f => {
+  const p = f.properties || f;
+  const coords = f.geometry ? f.geometry.coordinates : [f.lon, f.lat];
+  const lon = coords[0], lat = coords[1];
+  const measured = !!p.rockhead_measured;
+  const cm = p.cover_m;
+  const tip = `${p.id} · cover ${cm != null ? Number(cm).toFixed(2) + ' m' : '—'} · ${measured ? 'rockhead measured' : 'cover estimated'}`;
+  L.circleMarker([lat, lon], {
+    radius: coverRadius(cm),
+    color: measured ? '#2a1808' : '#a67c52',
+    weight: measured ? 2.8 : 1.2,
+    fillColor: coverColour(cm),
+    fillOpacity: 0.88,
+    pane: 'cover'
+  }).bindTooltip(tip).addTo(coverLayer);
+});
+
+L.control.layers(
+  { 'OSM': osm },
+  {
+    'Terrain 50 hillshade': terr50,
+    'Cover thickness': coverLayer
+  },
+  { collapsed: false, position: 'topright' }
+).addTo(map);
 
 function makeChips(el, values, kind, labels) {
   el.innerHTML = `<div class="lab">${kind}</div>` + values.map(v => {
@@ -669,8 +734,15 @@ def main() -> None:
         json.dumps(to_geojson(rows), indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
+    cover_path = DATA / "cover-thickness.geojson"
+    if cover_path.is_file():
+        cover_fc = json.loads(cover_path.read_text(encoding="utf-8"))
+    else:
+        cover_fc = {"type": "FeatureCollection", "features": []}
+
     html = (
         HTML.replace("__HOLES_JSON__", json.dumps(rows, ensure_ascii=False))
+        .replace("__COVER_JSON__", json.dumps(cover_fc, ensure_ascii=False))
         .replace("__SOURCE_DOC_URLS__", json.dumps(SOURCE_DOC_URLS))
         .replace("__CLASS_ORDER__", json.dumps(CLASS_ORDER))
         .replace("__CLASS_LABEL__", json.dumps(CLASS_LABEL))
