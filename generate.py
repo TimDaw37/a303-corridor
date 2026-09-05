@@ -361,7 +361,7 @@ HTML = r"""<!DOCTYPE html>
   </figure>
   <figure class="xs">
     <img class="expandable" src="figures/corridor-long-section.png" tabindex="0" role="button" alt="A303 corridor west–east long section of ground level and rockhead in metres OD" width="100%" loading="lazy" />
-    <figcaption>Corridor long-section (W→E). Ground levels ~71–118 m OD; SU14SW62 at Stonehenge Bottom marked at 96 m OD. Rockhead sticks where logged (Report 7 + two Phase holes).</figcaption>
+    <figcaption>Corridor long-section (W→E). Continuous ground level and rockhead over a solid chalk block (Jarvis-style). Superficial veneer between the two lines; rockhead measured at squares, elsewhere class-estimated. SU14SW62 at 96 m OD.</figcaption>
   </figure>
   <figure class="xs xs-narrow">
     <img class="expandable" src="figures/su14sw62-stick.png" tabindex="0" role="button" alt="SU14SW62 Stonehenge Bottom borehole stick log in metres OD" width="320" loading="lazy" />

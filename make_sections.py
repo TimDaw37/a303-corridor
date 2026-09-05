@@ -248,103 +248,189 @@ def make_winterbourne():
 
 
 def make_corridor_long():
+    """Jarvis Fig 16 style: continuous GL + rockhead, solid filled blocks.
+
+    Holes sit on a 2D corridor; projecting onto easting alone makes a noisy
+    scatter. Bin by easting, take median GL, and build a rockhead surface from
+    measured values plus class-based thin-cover estimates (captioned as such).
+    """
     rows = json.loads(DATA.read_text())
-    # Sort by easting (W→E along A303 corridor)
     rows = sorted(rows, key=lambda r: r["easting"])
     e0 = rows[0]["easting"]
-    xs = [r["easting"] - e0 for r in rows]
-    gls = [r["gl_m_od"] for r in rows]
 
-    fig, ax = plt.subplots(figsize=(12.5, 5.8), dpi=160)
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("#fafafa")
-
-    # Scatter GLs by classification colour
-    class_col = {
-        "periglacial_coombe": "#c4a574",
-        "colluvium": "#d4b896",
-        "chalk": "#f0ead8",
-        "solution": "#a89070",
-        "made_ground": "#888888",
-        "ambiguous": "#cccccc",
+    # --- class-based default superficial thickness (m) when rockhead unknown ---
+    # chalk: thin ploughsoil; coombe/colluvium: Report 7 typical 2–4 m; measured wins.
+    DEFAULT_COVER = {
+        "chalk": 0.6,
+        "made_ground": 1.5,
+        "colluvium": 2.0,
+        "periglacial_coombe": 2.5,
+        "solution": 3.5,
+        "ambiguous": 1.5,
     }
-    for x, r in zip(xs, rows):
-        c = class_col.get(r.get("classification"), "#999")
-        ax.scatter(x, r["gl_m_od"], s=18, c=c, edgecolors="#333", linewidths=0.3, zorder=3)
+
+    def rockhead_est(r):
         if r.get("rockhead_m_od") is not None:
+            return float(r["rockhead_m_od"]), True
+        cover = DEFAULT_COVER.get(r.get("classification"), 1.5)
+        return float(r["gl_m_od"]) - cover, False
+
+    # Per-hole samples in distance-east space
+    pts = []
+    for r in rows:
+        rh, measured = rockhead_est(r)
+        pts.append(
+            {
+                "x": r["easting"] - e0,
+                "gl": float(r["gl_m_od"]),
+                "rh": rh,
+                "measured": measured,
+                "cls": r.get("classification"),
+                "id": r["id"],
+            }
+        )
+
+    # Bin every 80 m — median GL / RH for a clean section envelope
+    xs = np.array([p["x"] for p in pts])
+    xmin, xmax = float(xs.min()), float(xs.max())
+    bin_w = 80.0
+    edges = np.arange(xmin, xmax + bin_w, bin_w)
+    bx, bgl, brh, bn = [], [], [], []
+    for i in range(len(edges) - 1):
+        lo, hi = edges[i], edges[i + 1]
+        in_bin = [p for p in pts if lo <= p["x"] < hi]
+        if not in_bin:
+            continue
+        bx.append(0.5 * (lo + hi))
+        bgl.append(float(np.median([p["gl"] for p in in_bin])))
+        brh.append(float(np.median([p["rh"] for p in in_bin])))
+        bn.append(len(in_bin))
+    bx = np.array(bx)
+    bgl = np.array(bgl)
+    brh = np.array(brh)
+    # Ensure rockhead never above ground
+    brh = np.minimum(brh, bgl - 0.15)
+
+    chalk_floor = 40.0  # Jarvis-like deep frame (m OD)
+
+    fig, ax = plt.subplots(figsize=(12.8, 6.4), dpi=160)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("#f7f5ef")
+
+    # Solid chalk block (bedrock) from floor up to rockhead
+    ax.fill_between(
+        bx, chalk_floor, brh, color="#f3ecd4", edgecolor="none", zorder=1, label="Chalk bedrock"
+    )
+    # Solid superficial veneer GL → rockhead
+    ax.fill_between(
+        bx,
+        brh,
+        bgl,
+        color="#c4a574",
+        edgecolor="none",
+        zorder=2,
+        label="Superficial (head / coombe / colluvium / thin ploughsoil)",
+    )
+    # Ground level — strong continuous line
+    ax.plot(bx, bgl, color="#1a1a1a", linewidth=2.0, zorder=5, label="Ground level")
+    # Rockhead — continuous line
+    ax.plot(bx, brh, color="#6b4e2e", linewidth=1.6, linestyle="--", zorder=5, label="Rockhead (see note)")
+
+    # Tick marks at measured rockheads only
+    for p in pts:
+        if p["measured"]:
             ax.plot(
-                [x, x],
-                [r["rockhead_m_od"], r["gl_m_od"]],
-                color="#555",
-                linewidth=0.9,
-                zorder=2,
+                [p["x"], p["x"]],
+                [p["rh"], p["gl"]],
+                color="#333",
+                linewidth=1.1,
+                zorder=6,
             )
-            ax.scatter(x, r["rockhead_m_od"], s=12, c="#8a6d3b", marker="s", zorder=4)
+            ax.scatter(p["x"], p["rh"], s=22, c="#6b4e2e", marker="s", zorder=7, edgecolors="#222", linewidths=0.4)
 
-    # Smooth envelope of GL (optional light line)
-    ax.plot(xs, gls, color="#222", linewidth=0.6, alpha=0.35, zorder=1)
-
-    ax.axhline(0, color="#1f77b4", linewidth=1.2, linestyle=":", zorder=1)
-    ax.fill_between([xs[0], xs[-1]], -5, 0, color="#1f77b4", alpha=0.08, zorder=0)
-    ax.text(xs[-1] * 0.02, 3, "Holocene eustatic sea level ≈ 0 m OD", color="#1f77b4", fontsize=9)
-
-    # Landmark annotations by easting
-    landmarks = [
-        (407207, "Winterbourne Stoke\ncoombe (R7)", 82),
-        (412924, "Stonehenge Bottom\nSU14SW62 @ 96 m OD", 102),
-        (410000, "Western portal /\nNormanton Down ≈ 100 m", 112),
-        (415000, "Eastern portal /\nCountess ≈ 70–75 m", 85),
-    ]
-    for e, label, y in landmarks:
-        x = e - e0
-        if xs[0] <= x <= xs[-1]:
-            ax.axvline(x, color="#aaa", linewidth=0.6, linestyle="--", zorder=0)
-            ax.text(x + 40, y, label, fontsize=7.5, color="#444", va="bottom")
-
-    # SU14SW62 marker (audit borehole) — not in our gazetteer; add as reference
-    sx = 412924 - e0
-    ax.scatter([sx], [96.0], s=60, c="#c0392b", marker="*", zorder=6, label="SU14SW62 (flooding audit)")
-    ax.annotate(
-        "SU14SW62\n96 m OD",
-        xy=(sx, 96),
-        xytext=(sx + 200, 88),
-        fontsize=8,
-        color="#c0392b",
-        arrowprops=dict(arrowstyle="->", color="#c0392b", lw=0.8),
+    # Holocene sea level
+    ax.axhline(0, color="#1f77b4", linewidth=1.2, linestyle=":", zorder=3)
+    ax.fill_between([bx[0], bx[-1]], -5, 0, color="#1f77b4", alpha=0.10, zorder=0)
+    ax.text(
+        bx[0] + 80,
+        3.5,
+        "Holocene eustatic sea level ≈ 0 m OD",
+        color="#1f77b4",
+        fontsize=9,
     )
 
-    ax.set_xlim(xs[0] - 100, xs[-1] + 100)
-    ax.set_ylim(-8, max(gls) + 8)
-    ax.set_xlabel(f"Distance east of westernmost hole (m) · OSGB easting {e0:.0f} →", fontsize=10)
+    # Landmarks
+    landmarks = [
+        (407207 - e0, "Winterbourne\nStoke coombe", None),
+        (410000 - e0, "Western portal\n≈ 100 m OD", None),
+        (412924 - e0, None, "SU14SW62"),  # special
+        (415000 - e0, "Eastern portal\n≈ 70–75 m OD", None),
+    ]
+    for x, label, special in landmarks:
+        if bx[0] <= x <= bx[-1]:
+            ax.axvline(x, color="#999", linewidth=0.7, linestyle=":", zorder=0)
+            if label:
+                # place label above ground
+                yi = float(np.interp(x, bx, bgl))
+                ax.text(x + 40, yi + 4, label, fontsize=7.5, color="#444", va="bottom")
+
+    # SU14SW62 star on ground
+    sx = 412924 - e0
+    ax.scatter([sx], [96.0], s=70, c="#c0392b", marker="*", zorder=8)
+    ax.annotate(
+        "SU14SW62 · 96 m OD\n(flooding-audit BH)",
+        xy=(sx, 96),
+        xytext=(sx + 280, 108),
+        fontsize=8,
+        color="#c0392b",
+        arrowprops=dict(arrowstyle="->", color="#c0392b", lw=0.9),
+    )
+
+    ax.set_xlim(bx[0] - 50, bx[-1] + 50)
+    ax.set_ylim(-5, float(np.max(bgl)) + 12)
+    ax.set_xlabel(f"Distance east along corridor (m) · from OSGB E {e0:.0f}", fontsize=10)
     ax.set_ylabel("Elevation (m OD)", fontsize=10)
     ax.set_title(
-        "A303 Amesbury–Berwick Down corridor — ground level & rockhead (m OD)\n"
-        "Jarvis-style elevation section · falsifies Holocene inundation of the Plain",
+        "A303 Amesbury–Berwick Down — geological long-section (m OD)\n"
+        "Ground level and rockhead as continuous surfaces · chalk as a solid block",
         fontsize=11,
         pad=10,
     )
-    ax.grid(True, axis="y", alpha=0.35, linewidth=0.5)
+    ax.grid(True, axis="y", alpha=0.3, linewidth=0.5)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
     handles = [
-        mpatches.Patch(facecolor=class_col["periglacial_coombe"], edgecolor="#333", label="Periglacial coombe"),
-        mpatches.Patch(facecolor=class_col["colluvium"], edgecolor="#333", label="Colluvium"),
-        mpatches.Patch(facecolor=class_col["chalk"], edgecolor="#333", label="Chalk-dominated"),
-        mpatches.Patch(facecolor=class_col["solution"], edgecolor="#333", label="Solution"),
-        mpatches.Patch(facecolor=class_col["made_ground"], edgecolor="#333", label="Made ground"),
-        Line2D([0], [0], color="#8a6d3b", marker="s", lw=0, markersize=6, label="Rockhead (where logged)"),
+        Line2D([0], [0], color="#1a1a1a", lw=2.0, label="Ground level (binned median)"),
+        Line2D([0], [0], color="#6b4e2e", lw=1.6, ls="--", label="Rockhead surface"),
+        mpatches.Patch(facecolor="#c4a574", label="Superficial deposits"),
+        mpatches.Patch(facecolor="#f3ecd4", label="Chalk bedrock"),
+        Line2D([0], [0], color="#6b4e2e", marker="s", lw=0, markersize=6, label="Measured rockhead"),
         Line2D([0], [0], color="#1f77b4", lw=1.2, ls=":", label="≈ 0 m OD"),
-        Line2D([0], [0], color="#c0392b", marker="*", lw=0, markersize=10, label="SU14SW62 audit BH"),
+        Line2D([0], [0], color="#c0392b", marker="*", lw=0, markersize=10, label="SU14SW62"),
     ]
     ax.legend(handles=handles, loc="lower right", fontsize=7.5, framealpha=0.95, ncol=2)
+
+    ax.text(
+        0.01,
+        0.02,
+        "Rockhead: measured where logged (squares); elsewhere estimated from class "
+        "(chalk ≈ 0.6 m cover; coombe/colluvium ≈ 2–3.5 m). "
+        "Binned every 80 m to suppress N–S scatter off the A303 line.",
+        transform=ax.transAxes,
+        fontsize=7,
+        color="#555",
+        va="bottom",
+        ha="left",
+        wrap=True,
+    )
 
     fig.tight_layout()
     path = OUT / "corridor-long-section.png"
     fig.savefig(path, dpi=160, bbox_inches="tight", facecolor="white")
     fig.savefig(OUT / "corridor-long-section.svg", bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print("wrote", path)
+    print("wrote", path, f"bins={len(bx)}")
     return path
 
 
