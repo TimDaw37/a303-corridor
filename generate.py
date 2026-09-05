@@ -246,9 +246,10 @@ HTML = r"""<!DOCTYPE html>
   .detail h2 { color: var(--gold); margin: 0 0 .3rem; }
   .detail-grid { display: grid; grid-template-columns: 1fr 140px; gap: 1rem; align-items: start; }
   @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
-  .stick-thumb { display: block; border: 1px solid #ddd; border-radius: 4px; background: #fff; max-width: 140px; }
+  .stick-panel { max-width: 160px; }
+  .stick-thumb { display: block; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
   .stick-thumb img { display: block; width: 100%; height: auto; }
-  .stick-meta { font-size: .78rem; color: var(--muted); margin: .35rem 0 0; line-height: 1.3; }
+  .stick-meta { font-size: .78rem; color: var(--muted); margin: .45rem 0 0; line-height: 1.35; }
 
   .kv { display: grid; grid-template-columns: 10rem 1fr; gap: .2rem .8rem; font: .9rem/1.4 system-ui, sans-serif; margin: 1rem 0; }
   .kv dt { color: var(--muted); }
@@ -571,10 +572,12 @@ function select(id, pan) {
         </dl>
         <p>${esc(h.notes || '')}</p>
       </div>
-      <a class="stick-thumb expandable-wrap" href="${stickFile}" title="Open schematic stick">
-        <img class="expandable" src="${stickFile}" alt="Schematic stick for ${esc(h.id)}" loading="lazy"/>
-        <p class="stick-meta">Schematic OD stick — click to enlarge. Unit thicknesses proportional unless Report&nbsp;7 printed intervals.</p>
-      </a>
+      <div class="stick-panel">
+        <a class="stick-thumb" href="${stickFile}" title="Open schematic stick">
+          <img class="expandable" src="${stickFile}" alt="Schematic stick for ${esc(h.id)}" loading="lazy"/>
+        </a>
+        <p class="stick-meta">Schematic OD stick — click to enlarge. Unit thicknesses are proportional unless Report&nbsp;7 printed intervals.</p>
+      </div>
     </div>`;
   // re-bind lightbox for newly injected expandable img
   const fresh = document.querySelector('#detail img.expandable');

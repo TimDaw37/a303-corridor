@@ -184,7 +184,7 @@ def draw_stick(row: dict, path: Path) -> None:
     y_min = chalk_base - 0.4
     y_max = gl + max(1.2, cover * 0.25)
 
-    fig, ax = plt.subplots(figsize=(3.6, 7.2), dpi=120)
+    fig, ax = plt.subplots(figsize=(5.2, 7.2), dpi=120)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("#fafafa")
 
@@ -216,17 +216,19 @@ def draw_stick(row: dict, path: Path) -> None:
         )
         used[legend] = col
         mid = 0.5 * (top + base)
-        if top - base >= 0.25:
-            ax.text(
-                0,
-                mid,
-                lab if len(lab) < 28 else lab[:25] + "…",
-                ha="center",
-                va="center",
-                fontsize=6.5,
-                color="#222",
-                zorder=3,
-            )
+        # Full label to the RIGHT of the stick (never truncated inside the band)
+        ax.plot([0.55, 0.85], [mid, mid], color="#666", lw=0.5, zorder=3)
+        ax.text(
+            0.95,
+            mid,
+            lab,
+            ha="left",
+            va="center",
+            fontsize=7,
+            color="#222",
+            zorder=3,
+            clip_on=False,
+        )
 
     ax.plot([-0.9, 0.9], [gl, gl], color="#111", lw=1.3, zorder=4)
     ax.plot(
@@ -237,25 +239,25 @@ def draw_stick(row: dict, path: Path) -> None:
         ls="--" if not measured else "-",
         zorder=4,
     )
-    ax.set_xlim(-1.6, 2.4)
+    ax.set_xlim(-1.4, 4.8)
     ax.set_ylim(y_min, y_max)
     ax.set_xticks([])
     ax.set_ylabel("Elevation (m OD)", fontsize=9)
-    mode = "measured rockhead" if measured else "estimated rockhead"
-    detailed = " · printed OD intervals" if row["id"] in R7_DETAILED else " · schematic stack"
-    ax.set_title(f"{row['id']}\nGL {gl:.2f} m OD · {mode}{detailed}", fontsize=9, pad=8)
+    ax.set_title(f"{row['id']}  ·  GL {gl:.2f} m OD", fontsize=10, pad=6)
+
+    mode = "Measured rockhead" if measured else "Estimated rockhead"
+    detail = (
+        "Printed OD intervals (Report 7)"
+        if row["id"] in R7_DETAILED
+        else "Schematic stack (proportional unit labels)"
+    )
+    # Single caption BELOW the axes — not overlapping the title
+    footnote = f"{mode}. {detail}."
     if gl > 15:
-        ax.text(
-            0.02,
-            0.02,
-            f"≈ 0 m OD is {gl:.0f} m below GL (below this frame)",
-            transform=ax.transAxes,
-            fontsize=6.5,
-            color="#1f77b4",
-            va="bottom",
-        )
+        footnote += f"  ≈ 0 m OD is {gl:.0f} m below GL (below this frame)."
     else:
         ax.axhline(0, color="#1f77b4", lw=0.9, ls=":", zorder=0)
+    fig.text(0.5, 0.01, footnote, ha="center", va="bottom", fontsize=7, color="#444", wrap=True)
 
     handles = [mpatches.Patch(facecolor=c, edgecolor="#333", label=l) for l, c in used.items()]
     handles += [
@@ -269,11 +271,11 @@ def draw_stick(row: dict, path: Path) -> None:
             label="Rockhead",
         ),
     ]
-    ax.legend(handles=handles, loc="lower right", fontsize=6.5, framealpha=0.95)
+    ax.legend(handles=handles, loc="lower left", fontsize=6.5, framealpha=0.95)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(path, dpi=120, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
