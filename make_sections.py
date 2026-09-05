@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Jarvis-style OD cross-sections for a303-corridor public page.
+"""OD cross-sections for a303-corridor public page.
 
-Style model: Mortimore/Jarvis et al. 2017 Fig 16 (elevation m AoD vs distance,
+Style model: Mortimore et al. 2017 Fig 16 (elevation m AoD vs distance,
 labelled borehole sticks) — same figure Tim copied into the Jan 2026 flooding audit.
 Data: Report 7 BH1–BH6 (TR010025-000588) + corridor gazetteer GLs.
 """
@@ -195,7 +195,7 @@ def make_winterbourne():
                 break
     ax.plot(xs, rh, color="#8a6d3b", linewidth=1.2, linestyle="--", zorder=5, label="Rockhead (chalk)")
 
-    # Zoom to stack (Jarvis Fig 16 fills the frame with geology).
+    # Zoom to stack (Mortimore et al. 2017 Fig 16 fills the frame with geology).
     # 0 m OD sits ~70 m below this window — stated in caption, not crushed into the plot.
     ax.set_xlim(xs[0] - 8, xs[-1] + 8)
     ax.set_ylim(68.5, max(gls) + 2.2)
@@ -265,7 +265,7 @@ def make_winterbourne():
 
 
 def make_corridor_long():
-    """Jarvis Fig 16 style: continuous GL + rockhead, solid filled blocks.
+    """Mortimore et al. 2017 Fig 16 style: continuous GL + rockhead, solid filled blocks.
 
     Holes sit on a 2D corridor; projecting onto easting alone makes a noisy
     scatter. Bin by easting, take median GL, and build a rockhead surface from
@@ -328,7 +328,7 @@ def make_corridor_long():
     # Ensure rockhead never above ground
     brh = np.minimum(brh, bgl - 0.15)
 
-    chalk_floor = 40.0  # Jarvis-like deep frame (m OD)
+    chalk_floor = 40.0  # Mortimore-like deep frame (m OD)
 
     fig, ax = plt.subplots(figsize=(12.8, 6.4), dpi=160)
     fig.patch.set_facecolor("white")
