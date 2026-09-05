@@ -251,9 +251,34 @@ HTML = r"""<!DOCTYPE html>
   .notes h2 { font-size: 1.05rem; color: var(--gold); margin: 1.4rem 0 .6rem; font-weight: 600; }
   .notes h2:first-child { margin-top: 0; }
   figure.xs { margin: 1.2rem 0 1.6rem; }
-  figure.xs img { display: block; max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
+  figure.xs img {
+    display: block; max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;
+    background: #fff; cursor: zoom-in;
+  }
+  figure.xs img:hover { border-color: #888; }
   figure.xs figcaption { font-size: 0.85rem; color: #555; margin-top: 0.45rem; line-height: 1.35; }
   figure.xs-narrow img { margin: 0 auto; }
+  .lb-hint { font-size: 0.8rem; color: #777; margin: -.4rem 0 1rem; }
+  #lightbox {
+    display: none; position: fixed; inset: 0; z-index: 10000;
+    background: rgba(10, 12, 16, 0.88); align-items: center; justify-content: center;
+    padding: 1rem; cursor: zoom-out;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: min(96vw, 1800px); max-height: 92vh; width: auto; height: auto;
+    object-fit: contain; border-radius: 4px; box-shadow: 0 8px 40px rgba(0,0,0,.45);
+    background: #fff; cursor: default;
+  }
+  #lightbox .lb-close {
+    position: absolute; top: 0.75rem; right: 1rem; border: 0; background: transparent;
+    color: #fff; font-size: 1.75rem; line-height: 1; cursor: pointer; opacity: .85;
+  }
+  #lightbox .lb-close:hover { opacity: 1; }
+  #lightbox .lb-cap {
+    position: absolute; left: 0; right: 0; bottom: 0.6rem; text-align: center;
+    color: #ddd; font-size: 0.85rem; padding: 0 1rem; pointer-events: none;
+  }
   .notes p { margin: 0 0 .8rem; }
   .notes ul { margin: 0 0 .8rem; padding-left: 1.1rem; }
   .notes li { margin: 0 0 .25rem; }
@@ -329,16 +354,17 @@ HTML = r"""<!DOCTYPE html>
   <h2>Elevations versus sea level</h2>
   <h2 id="cross-sections">Cross-sections (m OD)</h2>
   <p>Elevation sections in the spirit of Mortimore / Jarvis et al. (2017) Fig&nbsp;16 — the chalk corridor plotted in metres OD, the same visual language as the <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">January 2026 Stonehenge Bottom flooding audit</a>. Stacks are from printed Report&nbsp;7 sheets; corridor points are this gazetteer.</p>
+  <p class="lb-hint">Click a figure to enlarge · Esc or click outside to close</p>
   <figure class="xs">
-    <img src="figures/winterbourne-stoke-section.png" alt="Winterbourne Stoke coombe N–S cross-section, Report 7 BH1–BH6, elevation in metres OD" width="100%" loading="lazy" />
+    <img class="expandable" src="figures/winterbourne-stoke-section.png" tabindex="0" role="button" alt="Winterbourne Stoke coombe N–S cross-section, Report 7 BH1–BH6, elevation in metres OD" width="100%" loading="lazy" />
     <figcaption>Winterbourne Stoke coombe (Report 7 BH1–BH6). Periglacial coombe chalk under Holocene colluvium; rockhead ≈ 71–76 m OD. Holocene sea level ≈ 0 m OD lies ~70 m below the frame.</figcaption>
   </figure>
   <figure class="xs">
-    <img src="figures/corridor-long-section.png" alt="A303 corridor west–east long section of ground level and rockhead in metres OD" width="100%" loading="lazy" />
+    <img class="expandable" src="figures/corridor-long-section.png" tabindex="0" role="button" alt="A303 corridor west–east long section of ground level and rockhead in metres OD" width="100%" loading="lazy" />
     <figcaption>Corridor long-section (W→E). Ground levels ~71–118 m OD; SU14SW62 at Stonehenge Bottom marked at 96 m OD. Rockhead sticks where logged (Report 7 + two Phase holes).</figcaption>
   </figure>
   <figure class="xs xs-narrow">
-    <img src="figures/su14sw62-stick.png" alt="SU14SW62 Stonehenge Bottom borehole stick log in metres OD" width="320" loading="lazy" />
+    <img class="expandable" src="figures/su14sw62-stick.png" tabindex="0" role="button" alt="SU14SW62 Stonehenge Bottom borehole stick log in metres OD" width="320" loading="lazy" />
     <figcaption>SU14SW62 (Stonehenge Bottom) — thin periglacial head over Seaford Chalk; no Holocene aquatic facies. Same audit borehole as the January 2026 post.</figcaption>
   </figure>
 
@@ -547,6 +573,49 @@ document.getElementById('seaPanel').innerHTML =
 renderList();
 const bounds = L.latLngBounds(HOLES.map(h => [h.lat, h.lon]));
 if (bounds.isValid()) map.fitBounds(bounds.pad(0.08));
+</script>
+
+<div id="lightbox" hidden aria-modal="true" role="dialog" aria-label="Enlarged figure">
+  <button type="button" class="lb-close" aria-label="Close">&times;</button>
+  <img alt="" />
+  <div class="lb-cap"></div>
+</div>
+<script>
+(function () {
+  const lb = document.getElementById('lightbox');
+  const lbImg = lb.querySelector('img');
+  const lbCap = lb.querySelector('.lb-cap');
+  const closeBtn = lb.querySelector('.lb-close');
+
+  function openLb(img) {
+    lbImg.src = img.currentSrc || img.src;
+    lbImg.alt = img.alt || '';
+    const cap = img.closest('figure') && img.closest('figure').querySelector('figcaption');
+    lbCap.textContent = cap ? cap.textContent : '';
+    lb.hidden = false;
+    lb.classList.add('open');
+    document.documentElement.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+  function closeLb() {
+    lb.classList.remove('open');
+    lb.hidden = true;
+    lbImg.removeAttribute('src');
+    document.documentElement.style.overflow = '';
+  }
+
+  document.querySelectorAll('img.expandable').forEach((img) => {
+    img.addEventListener('click', () => openLb(img));
+    img.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(img); }
+    });
+  });
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeLb(); });
+  lb.addEventListener('click', (e) => { if (e.target === lb) closeLb(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lb.classList.contains('open')) closeLb();
+  });
+})();
 </script>
 </body>
 </html>
