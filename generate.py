@@ -453,7 +453,7 @@ HTML = r"""<!DOCTYPE html>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
   <h2>Terrain &amp; cover thickness</h2>
-  <p>Preferred ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). OS Terrain&nbsp;50 remains an optional fallback. Toggle layers top-right.</p>
+  <p>Ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). Toggle layers top-right.</p>
 
   <h2>Sources</h2>
   <ul>
@@ -471,7 +471,7 @@ HTML = r"""<!DOCTYPE html>
     <li>Daw, T. 2026. <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">Auditing the claim of Holocene flooding of Stonehenge Bottom</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i> s43247-025-03105-3</a>.</li>
     <li>Corpus noticed via <a href="https://www.buystonehenge.com/the-glacial-a303/">BuyStonehenge — The glacial A303</a> (desk search only; not a source of elevations).</li>
-    <li>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m (preferred hillshade; Open Government Licence). OS Terrain&nbsp;50 OpenData remains as optional fallback.</li>
+    <li>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m hillshade; Open Government Licence. (OS Terrain&nbsp;50 was used briefly as an interim base before the EA 1&nbsp;m tiles.)</li>
   </ul>
 </section>
 
@@ -485,7 +485,7 @@ HTML = r"""<!DOCTYPE html>
         <a href="https://mapapps2.bgs.ac.uk/geoindex/home.html?layer=BGSBoreholes">GeoIndex</a>.</li>
     <li>Clarke, A.P. &amp; Kirkland, C.L. 2026. <a href="https://www.nature.com/articles/s43247-025-03105-3"><i>Commun. Earth Environ.</i></a> — Plain unglaciated; negligible Preseli zircon fingerprint.</li>
     <li>Quote concordance: see <code>NOTES.md</code> in this repo.</li>
-    <li>EA LiDAR Composite DTM 2022 1&nbsp;m © Environment Agency / Open Government Licence. OS Terrain&nbsp;50 © Crown copyright / Open Government Licence (OpenData) — optional fallback.</li>
+    <li>EA LiDAR Composite DTM 2022 1&nbsp;m © Environment Agency / Open Government Licence.</li>
   </ul>
   <p>Original compilation, classification flags and code<br/>
   © Tim Daw 2026, licensed <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p>
@@ -512,8 +512,7 @@ const GL_MIN = __GL_MIN__;
 const GL_MAX = __GL_MAX__;
 const N_FLAG = __N_FLAG__;
 const N_ROCK = __N_ROCK__;
-const TERR50_BOUNDS = [[51.16706874298562, -1.9099747380148215], [51.18091520104916, -1.7391974361901161]];
-const EA1M_BOUNDS = [[51.16706874298562, -1.9099747380148215], [51.18091520104916, -1.7391974361901161]];
+const EA1M_BOUNDS = __EA1M_BOUNDS__;
 
 const map = L.map('map').setView([51.178, -1.84], 12);
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -525,12 +524,6 @@ const ea1m = L.imageOverlay('lidar/web/ea1m-hillshade.png', EA1M_BOUNDS, {
   interactive: false,
   attribution: 'EA LiDAR Composite DTM 2022 1m © Environment Agency / OGL'
 }).addTo(map);
-
-const terr50 = L.imageOverlay('lidar/web/terr50-hillshade.png', TERR50_BOUNDS, {
-  opacity: 0.75,
-  interactive: false,
-  attribution: 'OS Terrain 50 © Crown copyright / OpenData'
-});
 
 if (!map.getPane('holes')) {
   map.createPane('holes');
@@ -611,7 +604,6 @@ L.control.layers(
   { 'OSM': osm },
   {
     'EA LiDAR 1m hillshade (2022)': ea1m,
-    'Terrain 50 hillshade': terr50,
     'Cover thickness': coverLayer
   },
   { collapsed: false, position: 'topright' }
@@ -839,6 +831,12 @@ def main() -> None:
     else:
         cover_fc = {"type": "FeatureCollection", "features": []}
 
+    ea1m_bounds_path = OUT / "lidar" / "web" / "ea1m-bounds.json"
+    if ea1m_bounds_path.is_file():
+        ea1m_bounds = json.loads(ea1m_bounds_path.read_text(encoding="utf-8"))["wgs84_leaflet"]
+    else:
+        ea1m_bounds = [[51.16707, -1.90997], [51.18092, -1.73920]]
+
     html = (
         HTML.replace("__HOLES_JSON__", json.dumps(rows, ensure_ascii=False))
         .replace("__COVER_JSON__", json.dumps(cover_fc, ensure_ascii=False))
@@ -849,6 +847,7 @@ def main() -> None:
         .replace("__GL_MAX__", f"{gl_max:.2f}")
         .replace("__N_FLAG__", str(n_flag))
         .replace("__N_ROCK__", str(len(rhs)))
+        .replace("__EA1M_BOUNDS__", json.dumps(ea1m_bounds))
     )
     # also fill the notes section placeholders that use the same tokens
     (OUT / "index.html").write_text(html, encoding="utf-8")
