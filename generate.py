@@ -302,71 +302,64 @@ HTML = r"""<!DOCTYPE html>
   .leaflet-control-layers-separator { border-top-color: var(--line); }
 
   .cover-legend {
-    background: var(--panel);
+    background: rgba(36, 32, 23, 0.92);
     color: var(--ink);
-    border: 1px solid var(--gold);
-    border-radius: 4px;
-    padding: .55rem .7rem .6rem;
-    font: .72rem/1.35 system-ui, sans-serif;
-    min-width: 11.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,.55);
-  }
-  .cover-legend.static-key {
-    margin: .8rem 0 1.2rem;
-    max-width: 22rem;
     border: 1px solid var(--line);
-    box-shadow: none;
+    border-radius: 3px;
+    padding: .28rem .4rem .3rem;
+    font: .62rem/1.2 system-ui, sans-serif;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+    line-height: 1.15;
   }
-  /* Keep map legend clear of the zoom bar */
-  .leaflet-top.leaflet-left .cover-legend {
-    margin-top: .35rem;
-  }
-  .cover-legend h4 {
-    margin: 0 0 .4rem;
-    font: 600 .78rem/1.2 system-ui, sans-serif;
-    color: var(--gold);
-    letter-spacing: .02em;
-  }
-  .cover-legend .row {
+  .cover-legend .bar {
     display: flex;
-    align-items: center;
-    gap: .45rem;
-    margin: .18rem 0;
+    align-items: flex-end;
+    gap: .2rem;
   }
   .cover-legend .sw {
-    width: .85rem;
-    height: .85rem;
-    border-radius: 99px;
-    border: 1.5px solid #2a1808;
-    flex-shrink: 0;
-  }
-  .cover-legend .note {
-    margin: .45rem 0 0;
-    color: var(--muted);
-    font-size: .68rem;
-    line-height: 1.35;
-  }
-  .cover-legend .rings {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: .55rem;
-    margin: .35rem 0 .15rem;
-    flex-wrap: wrap;
+    gap: .1rem;
+  }
+  .cover-legend .sw i {
+    display: block;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 99px;
+    border: 1px solid #2a1808;
+  }
+  .cover-legend .sw b {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: .55rem;
+  }
+  .cover-legend .sep {
+    width: 1px;
+    height: 1.1rem;
+    background: var(--line);
+    margin: 0 .15rem .15rem;
   }
   .cover-legend .ring {
-    display: inline-flex;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: .3rem;
+    gap: .1rem;
   }
   .cover-legend .ring i {
-    display: inline-block;
-    width: .7rem;
-    height: .7rem;
+    display: block;
+    width: .55rem;
+    height: .55rem;
     border-radius: 99px;
     background: #fec44f;
   }
-  .cover-legend .ring.measured i { border: 2.5px solid #2a1808; }
-  .cover-legend .ring.estimated i { border: 1.2px solid #a67c52; }
+  .cover-legend .ring.measured i { border: 2px solid #2a1808; }
+  .cover-legend .ring.estimated i { border: 1px solid #a67c52; }
+  .cover-legend .ring b {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: .5rem;
+  }
 </style>
 </head>
 <body>
@@ -460,20 +453,7 @@ HTML = r"""<!DOCTYPE html>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
   <h2>Terrain &amp; cover thickness</h2>
-  <p>Preferred ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover thickness at each hole is <b>measured</b> where rockhead is logged, otherwise <b>estimated</b> from classification. OS Terrain&nbsp;50 remains available as an optional fallback. Toggle layers in the map control (top-right). The same depth key sits on the map (top-left, under zoom) whenever <b>Cover thickness</b> is on.</p>
-  <div class="cover-legend static-key" aria-label="Cover thickness key">
-    <h4>Cover thickness (m)</h4>
-    <div class="row"><span class="sw" style="background:#fff7bc"></span><span>0–1</span></div>
-    <div class="row"><span class="sw" style="background:#fec44f"></span><span>1–2</span></div>
-    <div class="row"><span class="sw" style="background:#fe9929"></span><span>2–3</span></div>
-    <div class="row"><span class="sw" style="background:#ec7014"></span><span>3–4</span></div>
-    <div class="row"><span class="sw" style="background:#8c2d04"></span><span>≥4</span></div>
-    <div class="rings">
-      <span class="ring measured"><i></i> measured rockhead</span>
-      <span class="ring estimated"><i></i> estimated cover</span>
-    </div>
-    <p class="note">Bold/dark ring = measured rockhead; light ring = estimated. Marker size also increases with thickness.</p>
-  </div>
+  <p>Preferred ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). OS Terrain&nbsp;50 remains an optional fallback. Toggle layers top-right.</p>
 
   <h2>Sources</h2>
   <ul>
@@ -637,21 +617,21 @@ L.control.layers(
   { collapsed: false, position: 'topright' }
 ).addTo(map);
 
-const coverLegend = L.control({ position: 'topleft' });
+const coverLegend = L.control({ position: 'bottomleft' });
 coverLegend.onAdd = function () {
   const div = L.DomUtil.create('div', 'cover-legend');
+  div.title = 'Cover thickness (m). Bold ring = measured rockhead; light = estimated.';
   div.innerHTML = `
-    <h4>Cover thickness (m)</h4>
-    <div class="row"><span class="sw" style="background:#fff7bc"></span><span>0–1</span></div>
-    <div class="row"><span class="sw" style="background:#fec44f"></span><span>1–2</span></div>
-    <div class="row"><span class="sw" style="background:#fe9929"></span><span>2–3</span></div>
-    <div class="row"><span class="sw" style="background:#ec7014"></span><span>3–4</span></div>
-    <div class="row"><span class="sw" style="background:#8c2d04"></span><span>≥4</span></div>
-    <div class="rings">
-      <span class="ring measured"><i></i> measured rockhead</span>
-      <span class="ring estimated"><i></i> estimated cover</span>
+    <div class="bar">
+      <span class="sw"><i style="background:#fff7bc"></i><b>0</b></span>
+      <span class="sw"><i style="background:#fec44f"></i><b>1</b></span>
+      <span class="sw"><i style="background:#fe9929"></i><b>2</b></span>
+      <span class="sw"><i style="background:#ec7014"></i><b>3</b></span>
+      <span class="sw"><i style="background:#8c2d04"></i><b>4+</b></span>
+      <span class="sep"></span>
+      <span class="ring measured"><i></i><b>meas.</b></span>
+      <span class="ring estimated"><i></i><b>est.</b></span>
     </div>
-    <p class="note">Bold/dark ring = measured rockhead; light ring = estimated. Marker size also increases with thickness.</p>
   `;
   L.DomEvent.disableClickPropagation(div);
   return div;
@@ -783,8 +763,8 @@ document.getElementById('seaPanel').innerHTML =
 
 renderList();
 const MAIN_HOLES = HOLES.filter(h => !['TP-A','TP-B','TP-C'].includes(h.id));
-const bounds = L.latLngBounds(MAIN_HOLES.map(h => [h.lat, h.lon]));
-if (bounds.isValid()) map.fitBounds(bounds.pad(0.08));
+// Fit to the EA LiDAR ribbon so the hillshade fills the default map (same OSGB crop as the holes).
+map.fitBounds(EA1M_BOUNDS, { padding: [6, 6], maxZoom: 14 });
 </script>
 
 <div id="lightbox" hidden aria-modal="true" role="dialog" aria-label="Enlarged figure">
