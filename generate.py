@@ -175,6 +175,42 @@ def to_geojson(rows: list[dict]) -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
+def load_bgs_fc() -> dict:
+    """Slim FeatureCollection from data/bgs_boreholes_index.json (already corridor-cropped)."""
+    src = DATA / "bgs_boreholes_index.json"
+    if not src.is_file():
+        return {"type": "FeatureCollection", "features": []}
+    raw = json.loads(src.read_text(encoding="utf-8"))
+    if isinstance(raw, dict) and "features" in raw:
+        return raw
+    features = []
+    for r in raw:
+        e, n = float(r["e"]), float(r["n"])
+        lat, lon = osgb_to_wgs84(e, n)
+        scan = r.get("scan")
+        if isinstance(scan, str) and scan.strip().lower() in ("not available", "n/a", "none", ""):
+            scan = None
+        ags = r.get("ags") or None
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
+                "properties": {
+                    "ref": r.get("ref"),
+                    "name": r.get("name"),
+                    "e": round(e, 1),
+                    "n": round(n, 1),
+                    "len": r.get("len"),
+                    "year": r.get("year"),
+                    "bgs_id": r.get("bgs_id"),
+                    "SCAN_URL": scan,
+                    "AGS_LOG_URL": ags,
+                },
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
 HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -453,7 +489,7 @@ HTML = r"""<!DOCTYPE html>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
   <h2>Terrain &amp; cover thickness</h2>
-  <p>Ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). Toggle layers top-right.</p>
+  <p>Ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). Toggle layers top-right. Optional <b>BGS GeoIndex</b> overlay (grey pins, default off) links to public scans; rockhead is not yet transcribed from AGS/scans.</p>
 
   <h2>Sources</h2>
   <ul>
@@ -465,7 +501,7 @@ HTML = r"""<!DOCTYPE html>
       <a href="https://nsip-documents.planninginspectorate.gov.uk/published-documents/TR010025-002245-A303-EIR_Reports-2-12B-G.pdf">002245</a> Phase 6 GI;
       <a href="https://nsip-documents.planninginspectorate.gov.uk/published-documents/TR010025-002259-A303-EIR_Reports-2-16-Gr.pdf">002259</a> Phase 7B factual;
       <a href="https://nsip-documents.planninginspectorate.gov.uk/published-documents/TR010025-002269-A303-EIR_Reports-2-13-Gr.pdf">002269</a> Phase 7a(i) factual.</li>
-    <li><a href="https://mapapps2.bgs.ac.uk/geoindex/home.html?layer=BGSBoreholes">BGS GeoIndex boreholes</a> (incl. SU14SW62).</li>
+    <li><a href="https://mapapps2.bgs.ac.uk/geoindex/home.html?layer=BGSBoreholes">BGS GeoIndex boreholes</a> (incl. SU14SW62) — map overlay “BGS GeoIndex” (grey pins → scan / AGS links where available; rockhead not yet transcribed from AGS/scans).</li>
     <li><a href="https://webapps.bgs.ac.uk/lexicon/lexicon.cfm?pub=COD">BGS Coombe deposits lexicon (COD)</a>;
         <a href="https://webapps.bgs.ac.uk/memoirs/docs/B06131.html">Salisbury Sheet 298 memoir brief</a>.</li>
     <li>Daw, T. 2026. <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">Auditing the claim of Holocene flooding of Stonehenge Bottom</a>.</li>
@@ -496,6 +532,7 @@ HTML = r"""<!DOCTYPE html>
 <script>
 const HOLES = __HOLES_JSON__;
 const COVER = __COVER_JSON__;
+const BGS = __BGS_JSON__;
 const SOURCE_DOC_URLS = __SOURCE_DOC_URLS__;
 const COLOUR = {
   periglacial_coombe: '#6d8b74',
@@ -525,6 +562,10 @@ const ea1m = L.imageOverlay('lidar/web/ea1m-hillshade.png', EA1M_BOUNDS, {
   attribution: 'EA LiDAR Composite DTM 2022 1m © Environment Agency / OGL'
 }).addTo(map);
 
+if (!map.getPane('bgs')) {
+  map.createPane('bgs');
+  map.getPane('bgs').style.zIndex = 640;
+}
 if (!map.getPane('holes')) {
   map.createPane('holes');
   map.getPane('holes').style.zIndex = 650;
@@ -600,11 +641,49 @@ const coverLayer = L.layerGroup();
 
 coverLayer.addTo(map);
 
+function bgsLinkHtml(label, url) {
+  if (!url) return '';
+  const parts = String(url).split(',').map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  return parts.map((u, i) => {
+    const lab = parts.length > 1 ? `${label} ${i + 1}` : label;
+    return `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(lab)}</a>`;
+  }).join(' · ');
+}
+
+const bgsLayer = L.layerGroup();
+(BGS.features || []).forEach(f => {
+  const p = f.properties || {};
+  const coords = f.geometry ? f.geometry.coordinates : null;
+  if (!coords) return;
+  const lon = coords[0], lat = coords[1];
+  const title = (p.ref || 'BGS') + (p.name ? ' — ' + p.name : '');
+  const lenStr = (p.len != null && p.len !== '') ? Number(p.len).toFixed(2) + ' m' : '—';
+  const yearStr = p.year != null && p.year !== '' ? String(p.year) : '—';
+  const tip = `${p.ref || 'BGS'}${p.year ? ' · ' + p.year : ''}${p.len != null ? ' · ' + Number(p.len).toFixed(1) + ' m' : ''}`;
+  const links = [bgsLinkHtml('Scan', p.SCAN_URL), bgsLinkHtml('AGS log', p.AGS_LOG_URL)].filter(Boolean).join('<br/>');
+  const html = `<strong>${esc(title)}</strong><br/>`
+    + `OSGB ${esc(p.e)}E ${esc(p.n)}N<br/>`
+    + `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}<br/>`
+    + `Length ${esc(lenStr)} · Year ${esc(yearStr)}`
+    + (links ? `<br/>${links}` : '');
+  L.circleMarker([lat, lon], {
+    radius: 3.5,
+    color: '#555555',
+    weight: 1,
+    fillColor: '#888888',
+    fillOpacity: 0.45,
+    opacity: 0.7,
+    pane: 'bgs'
+  }).bindTooltip(tip).bindPopup(html).addTo(bgsLayer);
+});
+
 L.control.layers(
   { 'OSM': osm },
   {
     'EA LiDAR 1m hillshade (2022)': ea1m,
-    'Cover thickness': coverLayer
+    'Cover thickness': coverLayer,
+    'BGS GeoIndex': bgsLayer
   },
   { collapsed: false, position: 'topright' }
 ).addTo(map);
@@ -831,6 +910,8 @@ def main() -> None:
     else:
         cover_fc = {"type": "FeatureCollection", "features": []}
 
+    bgs_fc = load_bgs_fc()
+
     ea1m_bounds_path = OUT / "lidar" / "web" / "ea1m-bounds.json"
     if ea1m_bounds_path.is_file():
         ea1m_bounds = json.loads(ea1m_bounds_path.read_text(encoding="utf-8"))["wgs84_leaflet"]
@@ -840,6 +921,7 @@ def main() -> None:
     html = (
         HTML.replace("__HOLES_JSON__", json.dumps(rows, ensure_ascii=False))
         .replace("__COVER_JSON__", json.dumps(cover_fc, ensure_ascii=False))
+        .replace("__BGS_JSON__", json.dumps(bgs_fc, ensure_ascii=False))
         .replace("__SOURCE_DOC_URLS__", json.dumps(SOURCE_DOC_URLS))
         .replace("__CLASS_ORDER__", json.dumps(CLASS_ORDER))
         .replace("__CLASS_LABEL__", json.dumps(CLASS_LABEL))
@@ -853,6 +935,7 @@ def main() -> None:
     (OUT / "index.html").write_text(html, encoding="utf-8")
 
     print(f"holes: {len(rows)}")
+    print(f"BGS GeoIndex: {len(bgs_fc.get('features', []))}")
     print(f"GL OD: {gl_min:.2f} .. {gl_max:.2f}")
     print(f"rockhead: {len(rhs)}; glacial_wording y: {n_flag}")
     print(f"wrote {DATA / 'boreholes.json'}")
