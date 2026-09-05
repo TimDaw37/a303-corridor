@@ -237,7 +237,11 @@ HTML = r"""<!DOCTYPE html>
     --flag: #c23b22;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Palatino Linotype", Palatino, "Book Antiqua", serif; }
+  html, body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 "Palatino Linotype", Palatino, "Book Antiqua", serif;
+    overflow-x: hidden; max-width: 100%;
+  }
   header { padding: 1.4rem 1.5rem .6rem; max-width: 1400px; margin: 0 auto; }
   header h1 { font-size: 1.75rem; font-weight: 600; letter-spacing: .02em; margin: 0 0 .25rem; color: var(--gold); }
   header .sub { color: var(--muted); font-style: italic; margin: 0 0 .5rem; }
@@ -257,9 +261,8 @@ HTML = r"""<!DOCTYPE html>
   label.chip.on { border-color: var(--gold); color: var(--ink); }
   .swatch { width: .7rem; height: .7rem; border-radius: 99px; display: inline-block; }
   .layout { display: grid; grid-template-columns: 1.2fr .8fr; gap: 0; max-width: 1400px; margin: 0 auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
-  #map { min-height: 72vh; background: #111; }
-  .side { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; max-height: 72vh; }
+  #map { min-height: 72vh; height: 72vh; background: #111; position: relative; }
+  .side { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; max-height: 72vh; min-height: 0; }
   .filters { padding: .8rem; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .35rem; }
   .filters input[type=search] { flex: 1 1 180px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); padding: .4rem .55rem; font: inherit; }
   .chip-row { display: flex; flex-wrap: wrap; gap: .3rem; padding: 0 .8rem .55rem; }
@@ -396,6 +399,98 @@ HTML = r"""<!DOCTYPE html>
     color: var(--muted);
     font-size: .5rem;
   }
+
+  /* —— Mobile / standing-back —— */
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    header { padding: .9rem 1rem .4rem; }
+    header h1 { font-size: 1.35rem; }
+    header .lead { font-size: .92rem; line-height: 1.4; }
+    .stats, .legend, .sea-panel { padding-left: 1rem; padding-right: 1rem; }
+    .sea-panel { font-size: .88rem; padding: .55rem .75rem; }
+    #map { min-height: 52vh; height: 52vh; }
+    .side {
+      border-left: none;
+      border-top: 1px solid var(--line);
+      max-height: 40vh;
+      height: 40vh;
+    }
+    label.chip { padding: .4rem .7rem; font-size: .82rem; min-height: 2rem; }
+    .filters input[type=search] { font-size: 1rem; padding: .5rem .6rem; }
+    .leaflet-control-attribution {
+      font-size: 9px !important; max-width: 55vw; line-height: 1.15;
+    }
+    .cover-legend { transform: scale(0.92); transform-origin: bottom left; max-width: 46vw; }
+    .map-read-note { max-width: min(92vw, 280px); font-size: .68rem; }
+    .landmark-label { font-size: 10px !important; }
+  }
+  @media (max-width: 600px) {
+    header { padding: .7rem .75rem .3rem; }
+    header h1 { font-size: 1.2rem; }
+    header .sub { font-size: .85rem; margin-bottom: .35rem; }
+    header .lead { font-size: .86rem; }
+    #map { min-height: 50vh; height: 50vh; }
+    .side { max-height: 38vh; height: 38vh; }
+    .detail { padding: 1rem .85rem 1.2rem; }
+    .kv { grid-template-columns: 7.5rem 1fr; font-size: .85rem; }
+    .leaflet-bottom.leaflet-right .leaflet-control-attribution { max-width: 48vw; }
+    .cover-legend { max-width: 42vw; padding: .2rem .3rem; }
+  }
+
+  .detail-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin: .6rem 0 0; }
+  .detail-actions a, .detail-actions button {
+    display: inline-block; background: var(--bg); color: var(--gold);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: .4rem .7rem; font: .8rem/1.2 system-ui, sans-serif;
+    text-decoration: none; cursor: pointer;
+  }
+  .detail-actions a:hover, .detail-actions button:hover { border-color: var(--gold); }
+  figure.xs.flash-hi {
+    outline: 2px solid var(--gold); outline-offset: 3px;
+    transition: outline-color .3s;
+  }
+
+  .map-read-note {
+    background: rgba(36, 32, 23, 0.94);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .45rem .55rem .5rem;
+    font: .72rem/1.35 system-ui, sans-serif;
+    max-width: 260px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  .map-read-note h4 {
+    margin: 0 1.4rem .3rem 0; color: var(--gold);
+    font-size: .78rem; font-weight: 600; letter-spacing: .02em;
+  }
+  .map-read-note p { margin: 0 0 .28rem; color: var(--muted); }
+  .map-read-note p:last-child { margin-bottom: 0; }
+  .map-read-note .dismiss {
+    position: absolute; top: .2rem; right: .35rem;
+    border: 0; background: transparent; color: var(--muted);
+    font-size: 1.1rem; line-height: 1; cursor: pointer; padding: .15rem .25rem;
+  }
+  .map-read-note .dismiss:hover { color: var(--ink); }
+  .map-read-note-wrap { position: relative; }
+
+  .landmark-label {
+    background: rgba(26, 24, 20, 0.78);
+    color: #e8e0d0;
+    border: 1px solid #3c362c;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font: 11px/1.25 system-ui, sans-serif;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    pointer-events: none;
+  }
+  .rh-label {
+    background: transparent; border: 0; box-shadow: none;
+    color: #d4c08a; font: 10px/1 system-ui, sans-serif;
+    text-shadow: 0 0 3px #1a1814, 0 1px 2px #000;
+    white-space: nowrap; pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -465,12 +560,12 @@ HTML = r"""<!DOCTYPE html>
   <h2 id="cross-sections">Cross-sections (m OD)</h2>
   <p>Elevation sections modelled on Mortimore et&nbsp;al. (2017) Fig.&nbsp;16 (<i>Proc. Geol. Assoc.</i> 128) — the chalk corridor plotted in metres OD, the same visual language as the <a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">January 2026 Stonehenge Bottom flooding audit</a>. Stacks are from printed Report&nbsp;7 sheets; corridor points are this gazetteer.</p>
   <p class="lb-hint">Click a figure to enlarge · Esc or click outside to close</p>
-  <figure class="xs">
+  <figure class="xs" id="winterbourne-stoke-section">
     <img class="expandable" src="figures/winterbourne-stoke-section.png" tabindex="0" role="button" alt="Winterbourne Stoke coombe N–S cross-section, Report 7 BH1–BH6, elevation in metres OD" width="100%" loading="lazy" />
     <figcaption>Winterbourne Stoke coombe (Report 7 BH1–BH6). Periglacial coombe chalk under Holocene colluvium; rockhead ≈ 71–76 m OD. Holocene sea level ≈ 0 m OD lies ~70 m below the frame. The thin dark band in BH5 and BH6 is <b>not till</b> — see note below.</figcaption>
   </figure>
   <p class="xs-note"><b>That dark band in BH5 and BH6 is not glacial till.</b> Report&nbsp;7 (TR010025-000588) logs a thin dark brown flinty silty clay <i>within</i> the periglacial coombe chalk in those two holes only. The report’s own alternatives are (1) a possible Windermere Interstadial buried soil, later overridden by renewed solifluction, or (2) a clay-with-flint lined dissolution pipe — the lower contacts are sharp, which is a poor fit for a normal in-situ soil profile. Either way it is a local coombe-hosted feature a few tens of centimetres thick, sandwiched in structureless chalk Head, not an ice-laid diamicton and not a sheet across the Plain. The corridor long-section’s brown veneer is the same family of deposits (ploughsoil, colluvium, coombe/head), drawn schematically between ground level and rockhead — again Head/coombe, not till.</p>
-  <figure class="xs">
+  <figure class="xs" id="corridor-long-section">
     <img class="expandable" src="figures/corridor-long-section.png" tabindex="0" role="button" alt="A303 corridor west–east long section of ground level and rockhead in metres OD" width="100%" loading="lazy" />
     <figcaption>Corridor long-section (W→E). Continuous ground level and rockhead over a solid chalk block (Mortimore-style long-section). Superficial veneer between the two lines; rockhead measured at squares, elsewhere class-estimated. SU14SW62 at 96 m OD.</figcaption>
   </figure>
@@ -489,7 +584,7 @@ HTML = r"""<!DOCTYPE html>
   <p>Each record carries OSGB36 easting/northing as printed, ground level (m OD) where printed, rockhead (m OD) only where the log states it (never invented), a short unit stack, and a <code>glacial_wording</code> flag independent of <code>classification</code>. Source document IDs link to the Planning Inspectorate published PDF where known.</p>
 
   <h2>Terrain &amp; cover thickness</h2>
-  <p>Ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). Toggle layers top-right. Optional <b>BGS GeoIndex</b> overlay (grey pins, default off) links to public scans; rockhead is not yet transcribed from AGS/scans.</p>
+  <p>Ground-surface base is the <b>Environment Agency LiDAR Composite DTM 2022 1&nbsp;m</b> hillshade (downsampled for the web map; not rockhead). Cover-thickness circles use the small bottom-left key (metres; bold ring = measured rockhead). <b>Rockhead OD contours</b> are a light RBF surface over measured rockhead where logged and class-estimated rockhead elsewhere — schematic, not a surveyed isopach. Toggle layers top-right. Optional <b>BGS GeoIndex</b> overlay (grey pins, default off) links to public scans; rockhead is not yet transcribed from AGS/scans.</p>
 
   <h2>Sources</h2>
   <ul>
@@ -533,6 +628,7 @@ HTML = r"""<!DOCTYPE html>
 const HOLES = __HOLES_JSON__;
 const COVER = __COVER_JSON__;
 const BGS = __BGS_JSON__;
+const ROCKHEAD = __ROCKHEAD_JSON__;
 const SOURCE_DOC_URLS = __SOURCE_DOC_URLS__;
 const COLOUR = {
   periglacial_coombe: '#6d8b74',
@@ -573,6 +669,14 @@ if (!map.getPane('holes')) {
 if (!map.getPane('cover')) {
   map.createPane('cover');
   map.getPane('cover').style.zIndex = 660;
+}
+if (!map.getPane('rockhead')) {
+  map.createPane('rockhead');
+  map.getPane('rockhead').style.zIndex = 655;
+}
+if (!map.getPane('landmarks')) {
+  map.createPane('landmarks');
+  map.getPane('landmarks').style.zIndex = 670;
 }
 
 function coverColour(m) {
@@ -641,6 +745,78 @@ const coverLayer = L.layerGroup();
 
 coverLayer.addTo(map);
 
+/* —— Rockhead OD contours (measured + estimated RBF) —— */
+const rockheadLayer = L.layerGroup();
+const rockheadLines = L.layerGroup().addTo(rockheadLayer);
+const rockheadMeasured = L.layerGroup().addTo(rockheadLayer);
+(ROCKHEAD.features || []).forEach(f => {
+  const p = f.properties || {};
+  const g = f.geometry;
+  if (!g) return;
+  if (g.type === 'LineString' || g.type === 'MultiLineString') {
+    const latlngs = g.type === 'LineString'
+      ? g.coordinates.map(c => [c[1], c[0]])
+      : g.coordinates.map(ring => ring.map(c => [c[1], c[0]]));
+    const od = Number(p.rockhead_m_od);
+    const line = L.polyline(latlngs, {
+      color: '#c4a35a',
+      weight: 1.15,
+      opacity: 0.72,
+      pane: 'rockhead',
+      interactive: false
+    });
+    line.addTo(rockheadLines);
+    // label every 10 m OD on midpoint of longest segment
+    if (Number.isFinite(od) && od % 10 === 0 && g.type === 'LineString' && g.coordinates.length > 2) {
+      const mid = g.coordinates[Math.floor(g.coordinates.length / 2)];
+      L.marker([mid[1], mid[0]], {
+        pane: 'rockhead',
+        interactive: false,
+        icon: L.divIcon({
+          className: '',
+          html: `<span class="rh-label">${od}</span>`,
+          iconSize: [28, 12],
+          iconAnchor: [14, 6]
+        })
+      }).addTo(rockheadLines);
+    }
+  } else if (g.type === 'Point' && p.kind === 'measured_point') {
+    L.circleMarker([g.coordinates[1], g.coordinates[0]], {
+      radius: 5.5,
+      color: '#2a1808',
+      weight: 2.4,
+      fillColor: '#f0e6c8',
+      fillOpacity: 0.95,
+      pane: 'rockhead'
+    }).bindTooltip(p.label || (p.id + ' measured rockhead')).addTo(rockheadMeasured);
+  }
+});
+rockheadLayer.addTo(map);
+
+/* —— Context landmarks —— */
+const LANDMARKS = [
+  { name: 'Stonehenge', lat: 51.1789, lon: -1.8262 },
+  { name: 'Winterbourne Stoke', lat: 51.1698, lon: -1.8885 },
+  { name: 'Countess / E portal', lat: 51.1796, lon: -1.7795 },
+  { name: 'Larkhill', lat: 51.1975, lon: -1.8055 }
+];
+const landmarksLayer = L.layerGroup();
+LANDMARKS.forEach(lm => {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="landmark-label">${lm.name}</div>`,
+    iconSize: [1, 1],
+    iconAnchor: [0, 0]
+  });
+  L.marker([lm.lat, lm.lon], {
+    icon,
+    pane: 'landmarks',
+    interactive: true,
+    keyboard: false
+  }).bindTooltip(lm.name, { permanent: false }).addTo(landmarksLayer);
+});
+landmarksLayer.addTo(map);
+
 function bgsLinkHtml(label, url) {
   if (!url) return '';
   const parts = String(url).split(',').map(s => s.trim()).filter(Boolean);
@@ -678,15 +854,72 @@ const bgsLayer = L.layerGroup();
   }).bindTooltip(tip).bindPopup(html).addTo(bgsLayer);
 });
 
-L.control.layers(
+function isNarrow() {
+  return (window.matchMedia && window.matchMedia('(max-width: 900px)').matches)
+    || window.innerWidth <= 900;
+}
+
+const layersControl = L.control.layers(
   { 'OSM': osm },
   {
     'EA LiDAR 1m hillshade (2022)': ea1m,
     'Cover thickness': coverLayer,
+    'Rockhead OD contours': rockheadLayer,
+    'Landmarks': landmarksLayer,
     'BGS GeoIndex': bgsLayer
   },
-  { collapsed: false, position: 'topright' }
+  { collapsed: isNarrow(), position: 'topright' }
 ).addTo(map);
+
+function syncLayersCollapsed() {
+  layersControl.options.collapsed = isNarrow();
+  if (isNarrow()) {
+    if (typeof layersControl.collapse === 'function') layersControl.collapse();
+  } else {
+    if (typeof layersControl.expand === 'function') layersControl.expand();
+  }
+}
+syncLayersCollapsed();
+
+/* —— On-map orientation note (dismissible, sessionStorage) —— */
+const READ_NOTE_KEY = 'a303_map_read_note_dismissed';
+const ReadNote = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function () {
+    const wrap = L.DomUtil.create('div', 'map-read-note-wrap map-read-note');
+    wrap.innerHTML = `
+      <button type="button" class="dismiss" aria-label="Dismiss">&times;</button>
+      <h4>Reading this map</h4>
+      <p>Colours = sediment class; open rings = log uses “glacial”/till wording (almost always peri-glacial in the same report).</p>
+      <p>Elevations are m OD. Plain holes ~70–117 m OD vs Holocene sea ~0 m OD — high Holocene water covering the Plain doesn’t fit.</p>
+      <p>Cover-thickness = depth to rockhead (measured or estimated). Bold cover rings / pale contour ticks = measured rockhead.</p>`;
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.disableScrollPropagation(wrap);
+    wrap.querySelector('.dismiss').addEventListener('click', () => {
+      try { sessionStorage.setItem(READ_NOTE_KEY, '1'); } catch (e) {}
+      map.removeControl(this);
+    });
+    return wrap;
+  }
+});
+let readNoteControl = null;
+if (!sessionStorage.getItem(READ_NOTE_KEY)) {
+  readNoteControl = new ReadNote();
+  readNoteControl.addTo(map);
+}
+
+function invalidateSoon() {
+  requestAnimationFrame(() => {
+    map.invalidateSize({ animate: false });
+  });
+  setTimeout(() => map.invalidateSize({ animate: false }), 200);
+}
+window.addEventListener('resize', () => {
+  syncLayersCollapsed();
+  invalidateSoon();
+});
+window.addEventListener('orientationchange', invalidateSoon);
+
 
 const coverLegend = L.control({ position: 'bottomleft' });
 coverLegend.onAdd = function () {
@@ -784,6 +1017,13 @@ function select(id, pan) {
   if (pan) map.setView([h.lat, h.lon], Math.max(map.getZoom(), 14));
   if (markers[id].openTooltip) markers[id].openTooltip();
   const stickFile = 'sticks/' + String(h.id).replace(/[^\w.\-]+/g, '_') + '.png';
+  const isR7 = /^R7-BH[1-6]$/i.test(h.id);
+  const sectionLinks = `
+    <div class="detail-actions">
+      <a href="${stickFile}" target="_blank" rel="noopener">Open schematic stick</a>
+      <a href="#corridor-long-section" data-scroll-fig="corridor-long-section">Corridor long-section</a>
+      ${isR7 ? '<a href="#winterbourne-stoke-section" data-scroll-fig="winterbourne-stoke-section">Winterbourne Stoke section</a>' : ''}
+    </div>`;
   document.getElementById('detail').innerHTML = `
     <span class="badge b-${esc(h.classification)}">${esc(h.class_label)}</span>
     ${h.glacial_wording === 'y' ? '<span class="flag">glacial wording on this log</span>' : ''}
@@ -804,6 +1044,7 @@ function select(id, pan) {
           <dt>Stick</dt><dd><a href="${stickFile}" target="_blank" rel="noopener">Full-size schematic</a>
             · <a href="sticks/">all sticks</a></dd>
         </dl>
+        ${sectionLinks}
         <p>${esc(h.notes || '')}</p>
       </div>
       <div class="stick-panel">
@@ -813,9 +1054,23 @@ function select(id, pan) {
         <p class="stick-meta">Schematic OD stick — click to enlarge. Unit thicknesses are proportional unless Report&nbsp;7 printed intervals.</p>
       </div>
     </div>`;
-  // re-bind lightbox for newly injected expandable img
   const fresh = document.querySelector('#detail img.expandable');
   if (fresh && window._bindStickLightbox) window._bindStickLightbox(fresh);
+  document.querySelectorAll('#detail [data-scroll-fig]').forEach(a => {
+    a.addEventListener('click', (ev) => {
+      const fid = a.getAttribute('data-scroll-fig');
+      const fig = document.getElementById(fid);
+      if (!fig) return;
+      ev.preventDefault();
+      fig.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      fig.classList.add('flash-hi');
+      setTimeout(() => fig.classList.remove('flash-hi'), 2200);
+    });
+  });
+  if (isNarrow()) {
+    const det = document.getElementById('detail');
+    if (det) det.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 document.getElementById('q').addEventListener('input', renderList);
@@ -836,6 +1091,8 @@ renderList();
 const MAIN_HOLES = HOLES.filter(h => !['TP-A','TP-B','TP-C'].includes(h.id));
 // Fit to the EA LiDAR ribbon so the hillshade fills the default map (same OSGB crop as the holes).
 map.fitBounds(EA1M_BOUNDS, { padding: [6, 6], maxZoom: 14 });
+map.once('moveend', invalidateSoon);
+invalidateSoon();
 </script>
 
 <div id="lightbox" hidden aria-modal="true" role="dialog" aria-label="Enlarged figure">
@@ -910,6 +1167,12 @@ def main() -> None:
     else:
         cover_fc = {"type": "FeatureCollection", "features": []}
 
+    rockhead_path = DATA / "rockhead-contours.geojson"
+    if rockhead_path.is_file():
+        rockhead_fc = json.loads(rockhead_path.read_text(encoding="utf-8"))
+    else:
+        rockhead_fc = {"type": "FeatureCollection", "features": []}
+
     bgs_fc = load_bgs_fc()
 
     ea1m_bounds_path = OUT / "lidar" / "web" / "ea1m-bounds.json"
@@ -921,6 +1184,7 @@ def main() -> None:
     html = (
         HTML.replace("__HOLES_JSON__", json.dumps(rows, ensure_ascii=False))
         .replace("__COVER_JSON__", json.dumps(cover_fc, ensure_ascii=False))
+        .replace("__ROCKHEAD_JSON__", json.dumps(rockhead_fc, ensure_ascii=False))
         .replace("__BGS_JSON__", json.dumps(bgs_fc, ensure_ascii=False))
         .replace("__SOURCE_DOC_URLS__", json.dumps(SOURCE_DOC_URLS))
         .replace("__CLASS_ORDER__", json.dumps(CLASS_ORDER))
@@ -941,6 +1205,7 @@ def main() -> None:
     print(f"wrote {DATA / 'boreholes.json'}")
     print(f"wrote {DATA / 'boreholes.geojson'}")
     print(f"wrote {OUT / 'index.html'}")
+    print(f"rockhead contours features: {len(rockhead_fc.get('features', []))} ({rockhead_path.stat().st_size if rockhead_path.is_file() else 0} bytes)")
     print("by classification:", dict(Counter(r["classification"] for r in rows)))
 
 
