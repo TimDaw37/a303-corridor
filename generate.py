@@ -497,7 +497,7 @@ HTML = r"""<!DOCTYPE html>
 <header>
   <h1>A boring story: A303 Stonehenge corridor boreholes</h1>
   <p class="sub">Tim Daw / working 2026. CC BY-SA.</p>
-  <p class="lead">Geolocated boreholes, trial pits and evaluation trenches along the A303 Amesbury–Berwick Down scheme — chalk rockhead, periglacial coombe/head, Holocene colluvium. Field “glacial” wording is flagged separately and reclassified where the reports themselves describe peri-glacial processes.</p>
+  <p class="lead">Geolocated A303 Highways / NSIP boreholes, trial pits and trenches (classified gazetteer), plus BGS GeoIndex pins across the same LiDAR rectangle — chalk rockhead, periglacial coombe/head, Holocene colluvium. Field “glacial” wording is flagged separately and reclassified where the reports themselves describe peri-glacial processes. Counts are two piles (not additive): many Highways logs also sit in BGS.</p>
 </header>
 
 <div class="stats" id="stats"></div>
@@ -645,6 +645,7 @@ const GL_MIN = __GL_MIN__;
 const GL_MAX = __GL_MAX__;
 const N_FLAG = __N_FLAG__;
 const N_ROCK = __N_ROCK__;
+const N_BGS = __N_BGS__;
 const EA1M_BOUNDS = __EA1M_BOUNDS__;
 
 const map = L.map('map').setView([51.178, -1.84], 12);
@@ -1076,7 +1077,8 @@ function select(id, pan) {
 document.getElementById('q').addEventListener('input', renderList);
 
 document.getElementById('stats').innerHTML = `
-  <div class="stat"><b>${HOLES.length}</b> holes / trenches</div>
+  <div class="stat"><b>${HOLES.length}</b> Highways / NSIP gazetteer</div>
+  <div class="stat"><b>${N_BGS}</b> BGS GeoIndex (LiDAR box)</div>
   <div class="stat"><b>${GL_MIN.toFixed(2)}–${GL_MAX.toFixed(2)}</b> m OD ground level</div>
   <div class="stat"><b>${N_ROCK}</b> with rockhead</div>
   <div class="stat"><b>${N_FLAG}</b> glacial_wording flagged</div>
@@ -1193,6 +1195,7 @@ def main() -> None:
         .replace("__GL_MAX__", f"{gl_max:.2f}")
         .replace("__N_FLAG__", str(n_flag))
         .replace("__N_ROCK__", str(len(rhs)))
+        .replace("__N_BGS__", str(len(bgs_fc.get("features", []))))
         .replace("__EA1M_BOUNDS__", json.dumps(ea1m_bounds))
     )
     # also fill the notes section placeholders that use the same tokens
