@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -209,6 +210,54 @@ def load_bgs_fc() -> dict:
             }
         )
     return {"type": "FeatureCollection", "features": features}
+
+
+
+_OUTBOUND_A_RE = re.compile(
+    r'<a\b([^>]*?)\bhref\s*=\s*(["\'])([^"\']+)\2([^>]*)>',
+    re.IGNORECASE,
+)
+
+
+def decorate_outbound_anchors(html: str) -> str:
+    """Add target=_blank rel=noopener noreferrer on external/document links.
+
+    Leaves pure in-page hash anchors (#…) and ordinary same-site paths alone.
+    Relative document files (.pdf/.png/…) open in a new tab too.
+    """
+
+    def _strip_attr(s: str, name: str) -> str:
+        return re.sub(rf'\s*\b{name}\s*=\s*"[^"]*"', "", s, flags=re.I)
+
+    def repl(m: re.Match[str]) -> str:
+        before, quote, href, after = m.group(1), m.group(2), m.group(3), m.group(4)
+        # In-page only (#section) — same tab
+        if href.startswith("#"):
+            return m.group(0)
+        is_http = href.startswith(("http://", "https://"))
+        is_doc = bool(re.search(r"\.(pdf|png|jpe?g|gif|webp|svg)([?#]|$)", href, re.I))
+        if not is_http and not is_doc:
+            return m.group(0)
+        combined = before + after
+        rel_m = re.search(r'\brel\s*=\s*"([^"]*)"', combined, re.I)
+        rel_parts: list[str] = []
+        if rel_m:
+            for tok in rel_m.group(1).split():
+                if tok and tok not in rel_parts:
+                    rel_parts.append(tok)
+        for tok in ("noopener", "noreferrer"):
+            if tok not in rel_parts:
+                rel_parts.append(tok)
+        before2 = _strip_attr(_strip_attr(before, "target"), "rel")
+        after2 = _strip_attr(_strip_attr(after, "target"), "rel")
+        # ensure a space before href when prior attrs exist
+        prefix = before2 if before2.endswith((" ", "\t", "\n")) or before2 == "" else before2 + " "
+        return (
+            f"<a{prefix}href={quote}{href}{quote}"
+            f' target="_blank" rel="{" ".join(rel_parts)}"{after2}>'
+        )
+
+    return _OUTBOUND_A_RE.sub(repl, html)
 
 
 HTML = r"""<!DOCTYPE html>
@@ -708,6 +757,12 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/** Outbound / document <a> — new tab. In-page #… anchors should not use this. */
+function aOut(href, labelHtml, extraAttrs) {
+  const extra = extraAttrs ? ' ' + extraAttrs : '';
+  return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer"${extra}>${labelHtml}</a>`;
+}
+
 function fmtOd(v) {
   return (v === null || v === undefined || v === '') ? '—' : Number(v).toFixed(2) + ' m OD';
 }
@@ -715,7 +770,7 @@ function fmtOd(v) {
 function sourceDocHtml(doc) {
   const url = SOURCE_DOC_URLS[doc];
   if (!url) return esc(doc || '—');
-  return `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(doc)}</a>`;
+  return aOut(url, esc(doc));
 }
 
 const markers = {};
@@ -834,7 +889,7 @@ function bgsLinkHtml(label, url) {
   if (!parts.length) return '';
   return parts.map((u, i) => {
     const lab = parts.length > 1 ? `${label} ${i + 1}` : label;
-    return `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(lab)}</a>`;
+    return aOut(u, esc(lab));
   }).join(' · ');
 }
 
@@ -1031,7 +1086,7 @@ function select(id, pan) {
   const isR7 = /^R7-BH[1-6]$/i.test(h.id);
   const sectionLinks = `
     <div class="detail-actions">
-      <a href="${stickFile}" target="_blank" rel="noopener">Open schematic stick</a>
+      ${aOut(stickFile, "Open schematic stick")}
       <a href="#corridor-long-section" data-scroll-fig="corridor-long-section">Corridor long-section</a>
       ${isR7 ? '<a href="#winterbourne-stoke-section" data-scroll-fig="winterbourne-stoke-section">Winterbourne Stoke section</a>' : ''}
     </div>`;
@@ -1051,15 +1106,15 @@ function select(id, pan) {
           <dt>Classification</dt><dd>${esc(h.class_label)}</dd>
           <dt>Glacial wording</dt><dd>${h.glacial_wording === 'y' ? 'yes (field slang flagged)' : 'no'}</dd>
           <dt>Source PDF</dt><dd>${sourceDocHtml(h.source_doc)}</dd>
-          <dt>Map</dt><dd><a href="https://www.openstreetmap.org/?mlat=${h.lat}&mlon=${h.lon}#map=16/${h.lat}/${h.lon}" target="_blank" rel="noopener">OpenStreetMap</a></dd>
-          <dt>Stick</dt><dd><a href="${stickFile}" target="_blank" rel="noopener">Full-size schematic</a>
+          <dt>Map</dt><dd>${aOut(`https://www.openstreetmap.org/?mlat=${h.lat}&mlon=${h.lon}#map=16/${h.lat}/${h.lon}`, "OpenStreetMap")}</dd>
+          <dt>Stick</dt><dd>${aOut(stickFile, "Full-size schematic")}
             · <a href="sticks/">all sticks</a></dd>
         </dl>
         ${sectionLinks}
         <p>${esc(h.notes || '')}</p>
       </div>
       <div class="stick-panel">
-        <a class="stick-thumb" href="${stickFile}" title="Open schematic stick">
+        <a class="stick-thumb" href="${stickFile}" target="_blank" rel="noopener noreferrer" title="Open schematic stick">
           <img class="expandable" src="${stickFile}" alt="Schematic stick for ${esc(h.id)}" loading="lazy"/>
         </a>
         <p class="stick-meta">Schematic OD stick — click to enlarge. Unit thicknesses are proportional unless Report&nbsp;7 printed intervals.</p>
@@ -1097,7 +1152,7 @@ document.getElementById('stats').innerHTML = `
 document.getElementById('seaPanel').innerHTML =
   `<strong>Holocene sea ~0 m OD</strong>; corridor ground levels in this gazetteer from <strong>${GL_MIN.toFixed(2)} to ${GL_MAX.toFixed(2)} m OD</strong>. ` +
   `That gap falsifies high Holocene marine water over Stonehenge Bottom / the Plain — see ` +
-  `<a href="https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html">the January 2026 flooding audit</a>.`;
+  aOut('https://www.sarsen.org/2026/01/auditing-claim-of-holocene-flooding-of.html', 'the January 2026 flooding audit') + '.';
 
 renderList();
 const MAIN_HOLES = HOLES.filter(h => !['TP-A','TP-B','TP-C'].includes(h.id));
@@ -1209,6 +1264,7 @@ def main() -> None:
         .replace("__EA1M_BOUNDS__", json.dumps(ea1m_bounds))
     )
     # also fill the notes section placeholders that use the same tokens
+    html = decorate_outbound_anchors(html)
     (OUT / "index.html").write_text(html, encoding="utf-8")
 
     print(f"holes: {len(rows)}")
